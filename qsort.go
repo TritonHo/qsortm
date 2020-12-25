@@ -101,9 +101,9 @@ func qsortProd(input []int) {
 
 	threadNum := runtime.NumCPU()
 	// ch1 link from inverter --> worker, it should be unbuffered allow FILO behaviour in coordinator
-	ch1 := make(chan []int)
+	ch1 := make(chan []int, threadNum)
 	// ch2 link from worker --> inverter, it pass the sub-task
-	ch2 := make(chan []int, 10)
+	ch2 := make(chan []int, 100 * threadNum)
 
 	wg.Add(threadNum)
 	for i := 0; i < threadNum; i++ {
