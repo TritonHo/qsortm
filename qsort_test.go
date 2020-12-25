@@ -4,6 +4,9 @@ import (
 	"math/rand"
 	"sort"
 	"testing"
+
+	"log"
+	"time"
 )
 
 func generateRandomSlice(n int) []int {
@@ -26,10 +29,12 @@ func isAscSorted(slice []int) bool {
 }
 
 func TestQsortProd(t *testing.T) {
-	array := generateRandomSlice(1000000)
+	array := generateRandomSlice(100000000)
 
+	startTime := time.Now()
 	qsortProd(array)
 
+	log.Println("elapsed time:", time.Since(startTime))
 	if isAscSorted(array) {
 		t.Error("the sorting is buggy", array)
 	}

@@ -11,6 +11,30 @@ import (
 	"time"
 )
 
+func channelInverterV2(inputCh, outputCh chan []int) {
+	taskBuffer := [][]int{}
+	for {
+		task, ok := <-inputCh
+		if !ok {
+			// the input channel has already closed
+			break
+		}
+		taskBuffer = append(taskBuffer, task)
+		for len(taskBuffer) > 0 {
+			task := taskBuffer[len(taskBuffer)-1]
+
+			select {
+			case outputCh <- task:
+				taskBuffer = taskBuffer[:len(taskBuffer)-1]
+			case newTask := <-inputCh:
+				taskBuffer = append(taskBuffer, newTask)
+			}
+		}
+	}
+
+	close(outputCh)
+}
+
 func channelInverter(inputCh, outputCh chan []int) {
 	// we use atomic int as a end singal
 	var noMoreInput int32 = 0
@@ -86,7 +110,7 @@ func qsortProd(input []int) {
 		go qsortProdWorker(ch1, ch2, &wg, &remainingTaskNum)
 	}
 
-	go channelInverter(ch2, ch1)
+	go channelInverterV2(ch2, ch1)
 
 	// add the input to channel
 	remainingTaskNum.Add(1)
