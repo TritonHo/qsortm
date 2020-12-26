@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"runtime"
 	"sort"
-	"sync"
+	//"sync"
 )
 
 func getPivotPoints(input []int, n int) []int {
@@ -29,6 +29,48 @@ func getPivotPoints(input []int, n int) []int {
 
 	return pivots
 }
+
+func countBucketSizeWorker(input, pivots []int, resultCh chan []int) {
+	counts := make([]int, len(pivots)+1, len(pivots)+1)
+	for i := range counts {
+		counts[i] = 0
+	}
+
+	for _, value := range input {
+		fn := func(i int) bool { return value <= pivots[i] }
+		pos := sort.Search(len(pivots), fn)
+		counts[pos] = counts[pos] + 1
+	}
+	resultCh <- counts
+}
+
+func countBucketSize(input, pivots []int) (counts []int) {
+	threadNum := runtime.NumCPU()
+	resultCh := make(chan []int, threadNum)
+
+	for i := 0; i < threadNum; i++ {
+		startPos := len(input) * i / threadNum
+		endPos := len(input) * (i + 1) / threadNum
+		subSlice := input[startPos:endPos]
+		go countBucketSizeWorker(subSlice, pivots, resultCh)
+	}
+
+	counts = make([]int, len(pivots)+1, len(pivots)+1)
+	for i := range counts {
+		counts[i] = 0
+	}
+
+	// merge the results from workers
+	for i := 0; i < threadNum; i++ {
+		subCounts := <-resultCh
+		for i, c := range subCounts {
+			counts[i] = counts[i] + c
+		}
+	}
+
+	return counts
+}
+
 /*
 func qsortWithBucket(input []int) {
 	wg := sync.WaitGroup{}
