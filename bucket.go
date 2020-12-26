@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"runtime"
 	"sort"
-	//"sync"
+	"sync"
 )
 
 func getPivotPositions(input []int, n int) (pivotPositions []int) {
@@ -123,32 +123,51 @@ func bucketWorker(input, subSlice, finalizedPivotPositions []int, exchangeCh []c
 	qsortWorkerCh <- subSlice
 }
 
-/*
 func qsortWithBucket(input []int) {
-	wg := sync.WaitGroup{}
-	remainingTaskNum := sync.WaitGroup{}
 
 	threadNum := runtime.NumCPU()
+
+	// prepare the pivots, and then move the pivots to final location
+	pivotPositions := getPivotPositions(input, threadNum*10)
+	counts := countBucketSize(input, pivotPositions)
+	mergedPivots, mergedCounts := mergePivots(input, pivotPositions, counts, threadNum*2)
+	finalizedPivotPositions := relocatePivots(input, mergedPivots, mergedCounts)
+
+	// create the exchange channels
+	exchangeCh := make([]chan int, len(finalizedPivotPositions)+1, len(finalizedPivotPositions)+1)
+	for i := 0; i <= len(finalizedPivotPositions); i++ {
+		exchangeCh[i] = make(chan int, 100)
+	}
+
+	wg := sync.WaitGroup{}
+	remainingTaskNum := sync.WaitGroup{}
 
 	// ch1 link from inverter --> worker, it should be unbuffered allow FILO behaviour in coordinator
 	ch1 := make(chan []int, threadNum)
 	// ch2 link from worker --> inverter, it pass the sub-task
 	ch2 := make(chan []int, 100*threadNum)
 
+	// start the qsort worker
 	wg.Add(threadNum)
 	for i := 0; i < threadNum; i++ {
 		go qsortProdWorker(ch1, ch2, &wg, &remainingTaskNum)
 	}
-
+	// start the qsort channel inverter
 	go channelInverterV2(ch2, ch1)
 
-	// add the input to channel
-	remainingTaskNum.Add(1)
-	ch1 <- input
-	remainingTaskNum.Wait()
+	// start the bucket workers
+	remainingTaskNum.Add(len(exchangeCh))
+	for i := range exchangeCh {
+		var subSlice []int
+		if i != len(exchangeCh)-1 {
+			subSlice = input[finalizedPivotPositions[i]:finalizedPivotPositions[i+1]]
+		} else {
+			subSlice = input[finalizedPivotPositions[i]:]
+		}
+		go bucketWorker(input, subSlice, finalizedPivotPositions, exchangeCh, i, ch1)
+	}
 
-	// wait for all task done, and the worker thread die peacefully
+	// wait for all task done, and the qsort worker thread die peacefully
 	close(ch2)
 	wg.Wait()
 }
-*/
