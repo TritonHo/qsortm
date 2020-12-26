@@ -98,12 +98,29 @@ func relocatePivots(input, pivotPositions, counts []int) (finalizedPivotPosition
 	finalizedPivotPositions = make([]int, len(counts), len(counts))
 
 	for i, originalPos := range pivotPositions {
-		newPos =  count[i] - 1
+		newPos := counts[i] - 1
 		// swap the content
-		input[newPos], input[originalPos] = input[ originalPos ], input[newPos]
+		input[newPos], input[originalPos] = input[originalPos], input[newPos]
 
 		finalizedPivotPositions[i] = newPos
 	}
+	return finalizedPivotPositions
+}
+
+func bucketWorker(input, subSlice, finalizedPivotPositions []int, exchangeCh []chan int, workerIndex int, qsortWorkerCh chan []int) {
+	for i, item := range subSlice {
+		fn := func(i int) bool { return item <= input[finalizedPivotPositions[i]] }
+		bucketIndex := sort.Search(len(finalizedPivotPositions), fn)
+
+		if bucketIndex != workerIndex {
+			// put the item into corresponding bucket channel, and then get back the item from the assigned channel
+			exchangeCh[bucketIndex] <- item
+			subSlice[i] = <-exchangeCh[workerIndex]
+		}
+	}
+
+	// after the bucket is finished, pass the subslice to qsort for further processing
+	qsortWorkerCh <- subSlice
 }
 
 /*
