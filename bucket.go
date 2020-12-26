@@ -9,18 +9,31 @@ import (
 	//"sync"
 )
 
-func getPivotPoints(input []int, n int) []int {
+func getPivotPoints(input []int, n int) (pivotPositions []int) {
 	// we get (n+1) * 10 unqiue points from random location, and then pick the n pivot
 	// FIXME: handle not enough point problem
 	// FIXME: if pivots is not unqiue, and then???
 	candidateSize := (n + 1) * 10
 
 	candidates := make([]int, candidateSize, candidateSize)
+	m := map[int]bool{}
 	for i := 0; i < candidateSize; i++ {
-		pos := rand.Intn(len(input))
-		candidates[i] = input[pos]
+		for {
+			pos := rand.Intn(len(input))
+			if _, ok := m[pos]; !ok {
+				m[pos] = true
+				candidates[i] = pos
+			}
+		}
 	}
-	sort.Ints(candidates)
+
+	// the the candidates according to the value
+	lessFn := func(i, j int) bool {
+		v1 := input[pivotPositions[i]]
+		v2 := input[pivotPositions[j]]
+		return v1 < v2
+	}
+	sort.Slice(candidates, lessFn)
 
 	pivots := make([]int, n, n)
 	for i := 0; i < n; i++ {
@@ -30,21 +43,21 @@ func getPivotPoints(input []int, n int) []int {
 	return pivots
 }
 
-func countBucketSizeWorker(input, pivots []int, resultCh chan []int) {
-	counts := make([]int, len(pivots)+1, len(pivots)+1)
+func countBucketSizeWorker(input, subSlice, pivotPositions []int, resultCh chan []int) {
+	counts := make([]int, len(pivotPositions)+1, len(pivotPositions)+1)
 	for i := range counts {
 		counts[i] = 0
 	}
 
-	for _, value := range input {
-		fn := func(i int) bool { return value <= pivots[i] }
-		pos := sort.Search(len(pivots), fn)
-		counts[pos] = counts[pos] + 1
+	for _, value := range subSlice {
+		fn := func(i int) bool { return value <= input[pivotPositions[i]] }
+		bucketIndex := sort.Search(len(pivotPositions), fn)
+		counts[bucketIndex] = counts[bucketIndex] + 1
 	}
 	resultCh <- counts
 }
 
-func countBucketSize(input, pivots []int) (counts []int) {
+func countBucketSize(input, pivotPositions []int) (counts []int) {
 	threadNum := runtime.NumCPU()
 	resultCh := make(chan []int, threadNum)
 
@@ -52,10 +65,10 @@ func countBucketSize(input, pivots []int) (counts []int) {
 		startPos := len(input) * i / threadNum
 		endPos := len(input) * (i + 1) / threadNum
 		subSlice := input[startPos:endPos]
-		go countBucketSizeWorker(subSlice, pivots, resultCh)
+		go countBucketSizeWorker(input, subSlice, pivotPositions, resultCh)
 	}
 
-	counts = make([]int, len(pivots)+1, len(pivots)+1)
+	counts = make([]int, len(pivotPositions)+1, len(pivotPositions)+1)
 	for i := range counts {
 		counts[i] = 0
 	}
