@@ -9,41 +9,32 @@ import (
 	//"sync"
 )
 
-func getPivotPoints(input []int, n int) (pivotPositions []int) {
-	// we get (n+1) * 10 unqiue points from random location, and then pick the n pivot
-	// FIXME: handle not enough point problem
-	// FIXME: if pivots is not unqiue, and then???
-	candidateSize := (n + 1) * 10
-
-	candidates := make([]int, candidateSize, candidateSize)
+func getPivotPositions(input []int, n int) (pivotPositions []int) {
+	pivotPositions = make([]int, n, n)
 	m := map[int]bool{}
-	for i := 0; i < candidateSize; i++ {
+	for i := 0; i < n; i++ {
 		for {
 			pos := rand.Intn(len(input))
 			if _, ok := m[pos]; !ok {
 				m[pos] = true
-				candidates[i] = pos
+				pivotPositions[i] = pos
 			}
 		}
 	}
 
-	// the the candidates according to the value
+	// sort the pivots according to the value
 	lessFn := func(i, j int) bool {
 		v1 := input[pivotPositions[i]]
 		v2 := input[pivotPositions[j]]
 		return v1 < v2
 	}
-	sort.Slice(candidates, lessFn)
+	sort.Slice(pivotPositions, lessFn)
 
-	pivots := make([]int, n, n)
-	for i := 0; i < n; i++ {
-		pivots[i] = candidates[(i+1)*n]
-	}
-
-	return pivots
+	return pivotPositions
 }
 
 func countBucketSizeWorker(input, subSlice, pivotPositions []int, resultCh chan []int) {
+	// since Search return n if "not found", we +1 make the code more clean
 	counts := make([]int, len(pivotPositions)+1, len(pivotPositions)+1)
 	for i := range counts {
 		counts[i] = 0
@@ -54,7 +45,7 @@ func countBucketSizeWorker(input, subSlice, pivotPositions []int, resultCh chan 
 		bucketIndex := sort.Search(len(pivotPositions), fn)
 		counts[bucketIndex] = counts[bucketIndex] + 1
 	}
-	resultCh <- counts
+	resultCh <- counts[:len(pivotPositions)]
 }
 
 func countBucketSize(input, pivotPositions []int) (counts []int) {
@@ -68,7 +59,7 @@ func countBucketSize(input, pivotPositions []int) (counts []int) {
 		go countBucketSizeWorker(input, subSlice, pivotPositions, resultCh)
 	}
 
-	counts = make([]int, len(pivotPositions)+1, len(pivotPositions)+1)
+	counts = make([]int, len(pivotPositions), len(pivotPositions))
 	for i := range counts {
 		counts[i] = 0
 	}
@@ -82,6 +73,25 @@ func countBucketSize(input, pivotPositions []int) (counts []int) {
 	}
 
 	return counts
+}
+
+func mergePivots(input, pivotPositions, counts []int, target int) (mergedPivots, mergedCounts []int) {
+	threhold := len(input) / target
+
+	mergedPivots = []int{}
+	mergedCounts = []int{}
+
+	total := 0
+	for i, pos := range pivotPositions {
+		total = total + counts[i]
+		if total >= threhold {
+			mergedPivots = append(mergedPivots, pos)
+			mergedCounts = append(mergedPivots, total)
+			total = 0
+		}
+	}
+
+	return mergedPivots, mergedCounts
 }
 
 /*
