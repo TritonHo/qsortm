@@ -7,54 +7,42 @@ import (
 
 	"runtime"
 	"sync"
-	"sync/atomic"
-	"time"
 )
 
-func channelInverter(inputCh, outputCh chan []int) {
-	// we use atomic int as a end singal
-	var noMoreInput int32 = 0
-
-	taskBufferLock := sync.Mutex{}
+func channelInverterV2(inputCh, outputCh chan []int) {
 	taskBuffer := [][]int{}
-
-	go func() {
-		for task := range inputCh {
-			taskBufferLock.Lock()
-			taskBuffer = append(taskBuffer, task)
-			taskBufferLock.Unlock()
-		}
-		atomic.StoreInt32(&noMoreInput, 1)
-	}()
-
 	for {
-		// test if the input
-		for len(taskBuffer) > 0 {
-			// get the last task in the buffer
-			taskBufferLock.Lock()
-			task := taskBuffer[len(taskBuffer)-1]
-			taskBuffer = taskBuffer[:len(taskBuffer)-1]
-			taskBufferLock.Unlock()
-
-			outputCh <- task
-		}
-		// if no more input, then we can end the loop
-		if atomic.LoadInt32(&noMoreInput) == 1 {
+		task, ok := <-inputCh
+		if !ok {
+			// the input channel has already closed
 			break
 		}
-		// sleep some tiny seconds to avoid CPU-time waste in for(1) loop
-		time.Sleep(10 * time.Microsecond)
+		taskBuffer = append(taskBuffer, task)
+		for len(taskBuffer) > 0 {
+			select {
+			case outputCh <- taskBuffer[len(taskBuffer)-1]:
+				taskBuffer = taskBuffer[:len(taskBuffer)-1]
+			case newTask := <-inputCh:
+				taskBuffer = append(taskBuffer, newTask)
+			}
+		}
 	}
+
 	close(outputCh)
 }
 
 func qsortProdWorker(inputTaskCh, subTaskCh chan []int, wg, remainingTaskNum *sync.WaitGroup) {
+
+	// if the size of the task is below threshold, it will use the standard library for sorting
+	// too small threshold will cause necessary data exchange between threads and degrade performance
+	const threshold = 10000
+
 	defer wg.Done()
 
 	for task := range inputTaskCh {
 		n := len(task)
 		switch {
-		case n > 100:
+		case n > threshold:
 			pivotPos := qsortPartition(task)
 
 			// add the sub-tasks to the queue
@@ -62,7 +50,7 @@ func qsortProdWorker(inputTaskCh, subTaskCh chan []int, wg, remainingTaskNum *sy
 			subTaskCh <- task[:pivotPos]
 			subTaskCh <- task[pivotPos+1:]
 		case n >= 2:
-			// for small n between 2 to 100, we switch back to standard library
+			// for small n between 2 to threshold, we switch back to standard library
 			sort.Ints(task)
 		}
 
@@ -77,16 +65,16 @@ func qsortProd(input []int) {
 
 	threadNum := runtime.NumCPU()
 	// ch1 link from inverter --> worker, it should be unbuffered allow FILO behaviour in coordinator
-	ch1 := make(chan []int)
+	ch1 := make(chan []int, threadNum)
 	// ch2 link from worker --> inverter, it pass the sub-task
-	ch2 := make(chan []int, 10)
+	ch2 := make(chan []int, 100*threadNum)
 
 	wg.Add(threadNum)
 	for i := 0; i < threadNum; i++ {
 		go qsortProdWorker(ch1, ch2, &wg, &remainingTaskNum)
 	}
 
-	go channelInverter(ch2, ch1)
+	go channelInverterV2(ch2, ch1)
 
 	// add the input to channel
 	remainingTaskNum.Add(1)
