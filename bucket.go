@@ -94,6 +94,18 @@ func mergePivots(input, pivotPositions, counts []int, target int) (mergedPivots,
 	return mergedPivots, mergedCounts
 }
 
+func relocatePivots(input, pivotPositions, counts []int) (finalizedPivotPositions []int) {
+	finalizedPivotPositions = make([]int, len(counts), len(counts))
+
+	for i, originalPos := range pivotPositions {
+		newPos =  count[i] - 1
+		// swap the content
+		input[newPos], input[originalPos] = input[ originalPos ], input[newPos]
+
+		finalizedPivotPositions[i] = newPos
+	}
+}
+
 /*
 func qsortWithBucket(input []int) {
 	wg := sync.WaitGroup{}
