@@ -175,6 +175,7 @@ func qsortWithBucket(input []int) {
 	go bucketWorker(input, input[finalizedPivotPositions[pivotCount-1]+1:], finalizedPivotPositions, exchangeChannels, 0, ch1)
 
 	// wait for all task done, and the qsort worker thread die peacefully
+	remainingTaskNum.Wait()
 	close(ch2)
 	wg.Wait()
 }
