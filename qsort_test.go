@@ -29,7 +29,7 @@ func isAscSorted(slice []int) bool {
 }
 
 func TestQsortWithBucket(t *testing.T) {
-	array := generateRandomSlice(100000000)
+	array := generateRandomSlice(10000)
 
 	startTime := time.Now()
 	qsortWithBucket(array)

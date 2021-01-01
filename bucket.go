@@ -1,7 +1,7 @@
 package qsortm
 
 import (
-	//	"log"
+	"log"
 
 	"math/rand"
 	"runtime"
@@ -87,21 +87,15 @@ func countBucketSize(input, pivotPositions []int) (pivots []pivotWithCount) {
 	return pivots
 }
 
-// remarks: mergedPivots is sorted based on position
+// remarks: mergedPivots is sorted based on referencing value
 func mergePivots(input []int, pivots []pivotWithCount, target int) (mergedPivots []pivotWithCount) {
 	threhold := len(input) / target
-
-	// sort the pivots by position
-	lessFn := func(i, j int) bool {
-		return pivots[i].pos < pivots[j].pos
-	}
-	sort.Slice(pivots, lessFn)
 
 	// merge the pivots
 	mergedPivots = []pivotWithCount{}
 	total := 0
 	for _, obj := range pivots {
-		total = total + obj.pos
+		total = total + obj.count
 		if total >= threhold {
 			p := pivotWithCount{pos: obj.pos, count: total}
 			mergedPivots = append(mergedPivots, p)
@@ -113,6 +107,19 @@ func mergePivots(input []int, pivots []pivotWithCount, target int) (mergedPivots
 }
 
 func relocatePivots(input []int, mergedPivots []pivotWithCount) (finalizedPivotPositions []int) {
+
+	/*
+		//sort the pivots by position
+
+		lessFn := func(i, j int) bool {
+			return pivots[i].pos < pivots[j].pos
+		}
+		sort.Slice(pivots, lessFn)
+	*/
+	for i, obj := range mergedPivots {
+		log.Println(`mergedPivots`, i, input[obj.pos], obj.pos, obj.count)
+	}
+
 	finalizedPivotPositions = make([]int, len(mergedPivots), len(mergedPivots))
 
 	total := 0
