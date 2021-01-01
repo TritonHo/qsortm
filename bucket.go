@@ -18,6 +18,7 @@ func getPivotPositions(input []int, n int) (pivotPositions []int) {
 			if _, ok := m[pos]; !ok {
 				m[pos] = true
 				pivotPositions[i] = pos
+				break
 			}
 		}
 	}
@@ -104,6 +105,13 @@ func relocatePivots(input, pivotPositions, counts []int) (finalizedPivotPosition
 
 		finalizedPivotPositions[i] = newPos
 	}
+
+	// sort the pivots slice according to the position
+	lessFn := func(i, j int) bool {
+		return finalizedPivotPositions[i] < finalizedPivotPositions[j]
+	}
+	sort.Slice(finalizedPivotPositions, lessFn)
+
 	return finalizedPivotPositions
 }
 
