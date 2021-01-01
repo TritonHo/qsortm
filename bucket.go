@@ -115,15 +115,15 @@ func relocatePivots(input, pivotPositions, counts []int) (finalizedPivotPosition
 	return finalizedPivotPositions
 }
 
-func bucketWorker(input, subSlice, finalizedPivotPositions []int, exchangeCh []chan int, workerIndex int, qsortWorkerCh chan []int) {
+func bucketWorker(input, subSlice, finalizedPivotPositions []int, exchangeChannels []chan int, workerIndex int, qsortWorkerCh chan []int) {
 	for i, item := range subSlice {
 		fn := func(i int) bool { return item <= input[finalizedPivotPositions[i]] }
 		bucketIndex := sort.Search(len(finalizedPivotPositions), fn)
 
 		if bucketIndex != workerIndex {
 			// put the item into corresponding bucket channel, and then get back the item from the assigned channel
-			exchangeCh[bucketIndex] <- item
-			subSlice[i] = <-exchangeCh[workerIndex]
+			exchangeChannels[bucketIndex] <- item
+			subSlice[i] = <-exchangeChannels[workerIndex]
 		}
 	}
 
@@ -140,11 +140,12 @@ func qsortWithBucket(input []int) {
 	counts := countBucketSize(input, pivotPositions)
 	mergedPivots, mergedCounts := mergePivots(input, pivotPositions, counts, threadNum*2)
 	finalizedPivotPositions := relocatePivots(input, mergedPivots, mergedCounts)
+	pivotCount := len(finalizedPivotPositions)
 
 	// create the exchange channels
-	exchangeCh := make([]chan int, len(finalizedPivotPositions)+1, len(finalizedPivotPositions)+1)
-	for i := 0; i <= len(finalizedPivotPositions); i++ {
-		exchangeCh[i] = make(chan int, 100)
+	exchangeChannels := make([]chan int, pivotCount+1, pivotCount+1)
+	for i := 0; i <= len(exchangeChannels); i++ {
+		exchangeChannels[i] = make(chan int, 100)
 	}
 
 	wg := sync.WaitGroup{}
@@ -164,16 +165,14 @@ func qsortWithBucket(input []int) {
 	go channelInverterV2(ch2, ch1)
 
 	// start the bucket workers
-	remainingTaskNum.Add(len(exchangeCh))
-	for i := range exchangeCh {
-		var subSlice []int
-		if i != len(exchangeCh)-1 {
-			subSlice = input[finalizedPivotPositions[i]:finalizedPivotPositions[i+1]]
-		} else {
-			subSlice = input[finalizedPivotPositions[i]:]
-		}
-		go bucketWorker(input, subSlice, finalizedPivotPositions, exchangeCh, i, ch1)
+	remainingTaskNum.Add(pivotCount + 1)
+	for i := 1; i < pivotCount; i++ {
+		subSlice := input[finalizedPivotPositions[i-1]+1 : finalizedPivotPositions[i]]
+		go bucketWorker(input, subSlice, finalizedPivotPositions, exchangeChannels, i, ch1)
 	}
+	// add the first and last bucket
+	go bucketWorker(input, input[:finalizedPivotPositions[0]], finalizedPivotPositions, exchangeChannels, 0, ch1)
+	go bucketWorker(input, input[finalizedPivotPositions[pivotCount-1]+1:], finalizedPivotPositions, exchangeChannels, 0, ch1)
 
 	// wait for all task done, and the qsort worker thread die peacefully
 	close(ch2)
