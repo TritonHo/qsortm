@@ -1,7 +1,7 @@
 package qsortm
 
 import (
-	//"log"
+	"log"
 
 	"math/rand"
 	"runtime"
@@ -124,7 +124,8 @@ func relocatePivots(input []int, mergedPivots []pivotWithCount) (finalizedPivotP
 	return finalizedPivotPositions
 }
 
-func bucketWorker(input, subSlice, finalizedPivotPositions []int, exchangeChannels []chan int, workerIndex int, qsortWorkerCh chan []int) {
+func bucketWorker(input, finalizedPivotPositions []int, exchangeChannels []chan int, startPos, endPos, workerIndex int, qsortWorkerCh chan []int) {
+	subSlice := input[startPos:endPos]
 	for i, item := range subSlice {
 		fn := func(i int) bool { return item <= input[finalizedPivotPositions[i]] }
 		bucketIndex := sort.Search(len(finalizedPivotPositions), fn)
@@ -135,6 +136,8 @@ func bucketWorker(input, subSlice, finalizedPivotPositions []int, exchangeChanne
 			subSlice[i] = <-exchangeChannels[workerIndex]
 		}
 	}
+
+	log.Println(`workerIndex done`, workerIndex)
 
 	// after the bucket is finished, pass the subslice to qsort for further processing
 	qsortWorkerCh <- subSlice
@@ -175,13 +178,17 @@ func qsortWithBucket(input []int) {
 
 	// start the bucket workers
 	remainingTaskNum.Add(pivotCount + 1)
-	for i := 1; i < pivotCount; i++ {
-		subSlice := input[finalizedPivotPositions[i-1]+1 : finalizedPivotPositions[i]]
-		go bucketWorker(input, subSlice, finalizedPivotPositions, exchangeChannels, i, ch1)
+
+	// add the starting and ending point
+	temp := []int{-1}
+	temp = append(temp, finalizedPivotPositions...)
+	temp = append(temp, len(input))
+
+	for i := 0; i < len(temp)-1; i++ {
+		startPos := temp[i] + 1
+		endPos := temp[i+1]
+		go bucketWorker(input, finalizedPivotPositions, exchangeChannels, startPos, endPos, i, ch1)
 	}
-	// add the first and last bucket
-	go bucketWorker(input, input[:finalizedPivotPositions[0]], finalizedPivotPositions, exchangeChannels, 0, ch1)
-	go bucketWorker(input, input[finalizedPivotPositions[pivotCount-1]+1:], finalizedPivotPositions, exchangeChannels, pivotCount, ch1)
 
 	// wait for all task done, and the qsort worker thread die peacefully
 	remainingTaskNum.Wait()
