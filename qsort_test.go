@@ -28,23 +28,26 @@ func isAscSorted(slice []int) bool {
 	return true
 }
 
-func TestBucketPivot(t *testing.T) {
+func TestCountBucketSize(t *testing.T) {
 	input := generateRandomSlice(100000)
 
 	pivotPositions := getPivotPositions(input, 100)
 	pivots := countBucketSize(input, pivotPositions)
 
-	total := 0
-	for _, p := range pivots {
-		total += p.count
+	for _, v := range input {
+		for i := range pivots {
+			if v <= input[pivots[i].pos] {
+				pivots[i].count--
+				break
+			}
+		}
 	}
-	if total != len(input) {
-		t.Error("the sum not match", total)
+	for i, p := range pivots {
+		if p.count != 0 {
+			t.Error("the count not match", i, p)
+		}
 	}
 
-	//	mergedPivots := mergePivots(input, pivots, threadNum*2)
-	//	finalizedPivotPositions := relocatePivots(input, mergedPivots)
-	//	pivotCount := len(finalizedPivotPositions)
 }
 
 func TestQsortWithBucket(t *testing.T) {
