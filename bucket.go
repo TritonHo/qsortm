@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// remarks: the pivotPositions is sorted based on the referencing value
 func getPivotPositions(input []int, n int) (pivotPositions []int) {
 	pivotPositions = make([]int, n, n)
 	m := map[int]bool{}
@@ -49,7 +50,14 @@ func countBucketSizeWorker(input, subSlice, pivotPositions []int, resultCh chan 
 	resultCh <- counts[:len(pivotPositions)]
 }
 
-func countBucketSize(input, pivotPositions []int) (counts []int) {
+// FIXME give better naming
+type pivotWithCount struct {
+	pos   int
+	count int
+}
+
+// remarks: the returned pivots is still sorted based on referencing value
+func countBucketSize(input, pivotPositions []int) (pivots []pivotWithCount) {
 	threadNum := runtime.NumCPU()
 	resultCh := make(chan []int, threadNum)
 
@@ -60,57 +68,63 @@ func countBucketSize(input, pivotPositions []int) (counts []int) {
 		go countBucketSizeWorker(input, subSlice, pivotPositions, resultCh)
 	}
 
-	counts = make([]int, len(pivotPositions), len(pivotPositions))
-	for i := range counts {
-		counts[i] = 0
+	pivots = make([]pivotWithCount, len(pivotPositions), len(pivotPositions))
+	for i := range pivots {
+		pivots[i] = pivotWithCount{
+			pos:   pivotPositions[i],
+			count: 0,
+		}
 	}
 
 	// merge the results from workers
 	for i := 0; i < threadNum; i++ {
 		subCounts := <-resultCh
 		for i, c := range subCounts {
-			counts[i] = counts[i] + c
+			pivots[i].count += c
 		}
 	}
 
-	return counts
+	return pivots
 }
 
-func mergePivots(input, pivotPositions, counts []int, target int) (mergedPivots, mergedCounts []int) {
+// remarks: mergedPivots is sorted based on position
+func mergePivots(input []int, pivots []pivotWithCount, target int) (mergedPivots []pivotWithCount) {
 	threhold := len(input) / target
 
-	mergedPivots = []int{}
-	mergedCounts = []int{}
+	// sort the pivots by position
+	lessFn := func(i, j int) bool {
+		return pivots[i].pos < pivots[j].pos
+	}
+	sort.Slice(pivots, lessFn)
 
+	// merge the pivots
+	mergedPivots = []pivotWithCount{}
 	total := 0
-	for i, pos := range pivotPositions {
-		total = total + counts[i]
+	for _, obj := range pivots {
+		total = total + obj.pos
 		if total >= threhold {
-			mergedPivots = append(mergedPivots, pos)
-			mergedCounts = append(mergedPivots, total)
+			p := pivotWithCount{pos: obj.pos, count: total}
+			mergedPivots = append(mergedPivots, p)
 			total = 0
 		}
 	}
 
-	return mergedPivots, mergedCounts
+	return mergedPivots
 }
 
-func relocatePivots(input, pivotPositions, counts []int) (finalizedPivotPositions []int) {
-	finalizedPivotPositions = make([]int, len(counts), len(counts))
+func relocatePivots(input []int, mergedPivots []pivotWithCount) (finalizedPivotPositions []int) {
+	finalizedPivotPositions = make([]int, len(mergedPivots), len(mergedPivots))
 
-	for i, originalPos := range pivotPositions {
-		newPos := counts[i] - 1
+	total := 0
+	for i, pivot := range mergedPivots {
 		// swap the content
+		total += pivot.count
+
+		originalPos, newPos := pivot.pos, total
 		input[newPos], input[originalPos] = input[originalPos], input[newPos]
 
 		finalizedPivotPositions[i] = newPos
 	}
-
-	// sort the pivots slice according to the position
-	lessFn := func(i, j int) bool {
-		return finalizedPivotPositions[i] < finalizedPivotPositions[j]
-	}
-	sort.Slice(finalizedPivotPositions, lessFn)
 
 	return finalizedPivotPositions
 }
@@ -137,9 +151,9 @@ func qsortWithBucket(input []int) {
 
 	// prepare the pivots, and then move the pivots to final location
 	pivotPositions := getPivotPositions(input, threadNum*10)
-	counts := countBucketSize(input, pivotPositions)
-	mergedPivots, mergedCounts := mergePivots(input, pivotPositions, counts, threadNum*2)
-	finalizedPivotPositions := relocatePivots(input, mergedPivots, mergedCounts)
+	pivots := countBucketSize(input, pivotPositions)
+	mergedPivots := mergePivots(input, pivots, threadNum*2)
+	finalizedPivotPositions := relocatePivots(input, mergedPivots)
 	pivotCount := len(finalizedPivotPositions)
 
 	// create the exchange channels
