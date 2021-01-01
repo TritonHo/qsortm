@@ -144,7 +144,7 @@ func qsortWithBucket(input []int) {
 
 	// create the exchange channels
 	exchangeChannels := make([]chan int, pivotCount+1, pivotCount+1)
-	for i := 0; i <= len(exchangeChannels); i++ {
+	for i := 0; i < len(exchangeChannels); i++ {
 		exchangeChannels[i] = make(chan int, 100)
 	}
 
