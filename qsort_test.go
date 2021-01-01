@@ -28,6 +28,18 @@ func isAscSorted(slice []int) bool {
 	return true
 }
 
+func TestQsortWithBucket(t *testing.T) {
+	array := generateRandomSlice(100000000)
+
+	startTime := time.Now()
+	qsortWithBucket(array)
+
+	log.Println("elapsed time:", time.Since(startTime))
+	if isAscSorted(array) {
+		t.Error("the sorting is buggy", array)
+	}
+}
+
 func TestQsortProd(t *testing.T) {
 	array := generateRandomSlice(100000000)
 
