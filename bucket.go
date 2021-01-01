@@ -1,7 +1,7 @@
 package qsortm
 
 import (
-	"log"
+	//"log"
 
 	"math/rand"
 	"runtime"
@@ -107,18 +107,6 @@ func mergePivots(input []int, pivots []pivotWithCount, target int) (mergedPivots
 }
 
 func relocatePivots(input []int, mergedPivots []pivotWithCount) (finalizedPivotPositions []int) {
-
-	/*
-		//sort the pivots by position
-
-		lessFn := func(i, j int) bool {
-			return pivots[i].pos < pivots[j].pos
-		}
-		sort.Slice(pivots, lessFn)
-	*/
-	for i, obj := range mergedPivots {
-		log.Println(`mergedPivots`, i, input[obj.pos], obj.pos, obj.count)
-	}
 
 	finalizedPivotPositions = make([]int, len(mergedPivots), len(mergedPivots))
 
