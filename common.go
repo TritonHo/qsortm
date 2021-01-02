@@ -10,10 +10,10 @@ func qsortPartition(input []int) (pivotPos int) {
 
 	for {
 		// scan for the swapping pairs
-		for startIdx < endIdx && input[startIdx] <= pivot {
+		for startIdx <= endIdx && input[startIdx] <= pivot {
 			startIdx++
 		}
-		for startIdx < endIdx && input[endIdx] >= pivot {
+		for startIdx <= endIdx && input[endIdx] > pivot {
 			endIdx--
 		}
 
@@ -24,7 +24,9 @@ func qsortPartition(input []int) (pivotPos int) {
 		input[startIdx], input[endIdx] = input[endIdx], input[startIdx]
 	}
 
+	pivotPos = startIdx - 1
+
 	// put back the pivot into correct position
-	input[0], input[startIdx] = input[startIdx], pivot
-	return startIdx
+	input[0], input[pivotPos] = input[pivotPos], pivot
+	return pivotPos
 }
