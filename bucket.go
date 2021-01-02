@@ -129,7 +129,7 @@ func relocatePivots(input []int, mergedPivots []pivotWithCount) (finalizedPivotP
 	for i, pivot := range mergedPivots {
 		total += pivot.count
 
-		oldPos, newPos := pivot.pos, total
+		oldPos, newPos := pivot.pos, total-1
 
 		newKeyValues[newPos] = input[newPos]
 		oldKeyValues[oldPos] = input[oldPos]
@@ -141,7 +141,7 @@ func relocatePivots(input []int, mergedPivots []pivotWithCount) (finalizedPivotP
 	for _, pivot := range mergedPivots {
 		total += pivot.count
 
-		oldPos, newPos := pivot.pos, total
+		oldPos, newPos := pivot.pos, total-1
 		input[newPos] = oldKeyValues[oldPos]
 	}
 	// step 4

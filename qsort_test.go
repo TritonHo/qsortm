@@ -47,7 +47,37 @@ func TestCountBucketSize(t *testing.T) {
 			t.Error("the count not match", i, p)
 		}
 	}
+	log.Println("TestCountBucketSize finished")
+}
 
+func TestRelocatePivots(t *testing.T) {
+	input := generateRandomSlice(10000)
+	input2 := []int{}
+	for _, value := range input {
+		input2 = append(input2, value)
+	}
+
+	pivotPositions := getPivotPositions(input, 100)
+	pivots := countBucketSize(input, pivotPositions)
+	mergedPivots := mergePivots(input, pivots, 10)
+	finalizedPivotPositions := relocatePivots(input, mergedPivots)
+
+	// get the value of the pivots
+	values := []int{}
+	for _, pos := range finalizedPivotPositions {
+		values = append(values, input[pos])
+	}
+
+	sort.Ints(input2)
+
+	// if the finalizedPivotPositions is positioned corrected, it should remain in the same location
+	for i, pos := range finalizedPivotPositions {
+		if input2[pos] != values[i] {
+			t.Error("the pivot position not match", input2[pos], values[i])
+		}
+	}
+
+	log.Println(`TestRelocatePivots finished`)
 }
 
 func TestQsortWithBucket(t *testing.T) {
@@ -58,10 +88,9 @@ func TestQsortWithBucket(t *testing.T) {
 
 	log.Println("elapsed time:", time.Since(startTime))
 	if isAscSorted(array) {
-		t.Error("the sorting is buggy", array)
+		t.Error("the sorting is buggy")
 	}
 }
-
 func TestQsortProd(t *testing.T) {
 	array := generateRandomSlice(100000000)
 
