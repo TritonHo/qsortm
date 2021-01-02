@@ -1,7 +1,7 @@
 package qsortm
 
 import (
-	"log"
+	// "log"
 
 	"math/rand"
 	"runtime"
@@ -175,8 +175,6 @@ func bucketWorker(input, finalizedPivotPositions []int, exchangeChannels []chan 
 			subSlice[i] = <-exchangeChannels[workerIndex]
 		}
 	}
-
-	log.Println(`workerIndex done`, workerIndex)
 
 	// after the bucket is finished, pass the subslice to qsort for further processing
 	qsortWorkerCh <- subSlice
