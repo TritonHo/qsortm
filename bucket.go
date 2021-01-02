@@ -110,15 +110,54 @@ func relocatePivots(input []int, mergedPivots []pivotWithCount) (finalizedPivotP
 
 	finalizedPivotPositions = make([]int, len(mergedPivots), len(mergedPivots))
 
+	// example:
+	// the content of pos[1,3,5,7,9] need to relocate to pos[3,6,9,12,15]
+	// algorithm
+	// 		1. backup the content of pos[3,6,9,12,15]
+	// 		2. backup the content of pos[1,3,5,7,9]
+	// 		3. using the backup in step 2, move the content of pos[1,3,5,7,9] to pos[3,6,9,12,15]
+	// 		4. for backup in 1 and 2, remove the pos that exists in both backup
+	//		5. fullback the pos[1,5,7] from the backup of pos[6, 12, 15] from step 4
+
+	// storing the (newPos, newValue) pairs
+	newKeyValues := map[int]int{}
+	// storing the (oldPos, oldValue) pairs
+	oldKeyValues := map[int]int{}
+
+	// step 1+2
 	total := 0
 	for i, pivot := range mergedPivots {
-		// swap the content
 		total += pivot.count
 
-		originalPos, newPos := pivot.pos, total
-		input[newPos], input[originalPos] = input[originalPos], input[newPos]
+		oldPos, newPos := pivot.pos, total
+
+		newKeyValues[newPos] = input[newPos]
+		oldKeyValues[oldPos] = input[oldPos]
 
 		finalizedPivotPositions[i] = newPos
+	}
+	// step 3
+	total = 0
+	for _, pivot := range mergedPivots {
+		total += pivot.count
+
+		oldPos, newPos := pivot.pos, total
+		input[newPos] = oldKeyValues[oldPos]
+	}
+	// step 4
+	newValues := []int{}
+	for newPos, newValue := range newKeyValues {
+		if _, ok := oldKeyValues[newPos]; ok {
+			delete(oldKeyValues, newPos)
+		} else {
+			newValues = append(newValues, newValue)
+		}
+	}
+	// step 5
+	i := 0
+	for oldPos := range oldKeyValues {
+		input[oldPos] = newValues[i]
+		i++
 	}
 
 	return finalizedPivotPositions
