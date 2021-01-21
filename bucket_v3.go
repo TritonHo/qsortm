@@ -71,7 +71,7 @@ func workOnBucket(input, finalizedPivotPositions []int, buckets []bucket, localB
 		fn := func(i int) bool { return item <= input[finalizedPivotPositions[i]] }
 		targetIndex := sort.Search(len(finalizedPivotPositions), fn)
 
-		if targetIndex != bucketIdx {
+		if targetIndex != workingIndex {
 			localBuffer[targetIndex] = append(localBuffer[targetIndex], item)
 			if len(localBuffer[targetIndex]) >= bufferMaxSize {
 				nextBucketIdx = targetIndex
@@ -118,18 +118,27 @@ func qsortWithBucketV3(input []int) {
 	// start the qsort channel inverter
 	go channelInverterV2(ch2, ch1)
 
-	// start the bucket workers
+	// add the number of remainingTasks
 	remainingTaskNum.Add(pivotCount + 1)
 
-	// add the starting and ending point
-	temp := []int{-1}
-	temp = append(temp, finalizedPivotPositions...)
+	// build the starting and ending point of each bucket
+	temp := append([]int{-1}, finalizedPivotPositions...)
 	temp = append(temp, len(input))
 
+	buckets := make([]bucket, pivotCount+1, pivotCount+1)
 	for i := 0; i < len(temp)-1; i++ {
-		startPos := temp[i] + 1
-		endPos := temp[i+1]
-		go bucketWorker(input, finalizedPivotPositions, exchangeChannels, startPos, endPos, i, ch1)
+		buckets[i] = bucket{
+			startPos:     temp[i] + 1,
+			completedPos: temp[i] + 1,
+			cleanedPos:   temp[i] + 1,
+			endPos:       temp[i+1],
+			lock:         &sync.Mutex{},
+		}
+	}
+
+	// start the bucket workers
+	for i := 0; i < runtime.NumCPU()*2; i++ {
+		go bucketWorkerV3(input, finalizedPivotPositions, buckets, ch2, i)
 	}
 
 	// wait for all task done, and the qsort worker thread die peacefully
