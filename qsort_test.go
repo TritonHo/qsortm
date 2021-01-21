@@ -81,7 +81,7 @@ func TestRelocatePivots(t *testing.T) {
 }
 
 func TestQsortWithBucket(t *testing.T) {
-	array := generateRandomSlice(100000000)
+	array := generateRandomSlice(10000)
 
 	startTime := time.Now()
 	qsortWithBucket(array)
@@ -91,6 +91,19 @@ func TestQsortWithBucket(t *testing.T) {
 		t.Error("the sorting is buggy")
 	}
 }
+
+func TestQsortWithBucketV3(t *testing.T) {
+	array := generateRandomSlice(10000)
+
+	startTime := time.Now()
+	qsortWithBucketV3(array)
+
+	log.Println("TestQsortWithBucketV3 elapsed time:", time.Since(startTime))
+	if isAscSorted(array) == false {
+		t.Error("the sorting is buggy")
+	}
+}
+
 func TestQsortProd(t *testing.T) {
 	array := generateRandomSlice(100000000)
 
