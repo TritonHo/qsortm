@@ -12,32 +12,41 @@ import (
 type bucket struct {
 	startPos, endPos         int
 	completedPos, cleanedPos int
-	lock                     *sync.Mutex
+	lock                     *sync.RWMutex
 }
 
 const bufferMaxSize = 100
 
 func bucketWorkerV3(input, finalizedPivotPositions []int, buckets []bucket, qsortWorkerCh chan []int, initBucket int) {
+	// first, build the local buffer
 	localBuffer := map[int][]int{}
 	for i := 0; i < len(finalizedPivotPositions)+1; i++ {
 		localBuffer[i] = make([]int, 0, bufferMaxSize)
 	}
-	/*
-		subSlice := input[startPos:endPos]
-		for i, item := range subSlice {
-			fn := func(i int) bool { return item <= input[finalizedPivotPositions[i]] }
-			bucketIndex := sort.Search(len(finalizedPivotPositions), fn)
 
-			if bucketIndex != workerIndex {
-				// put the item into corresponding bucket channel, and then get back the item from the assigned channel
-				exchangeChannels[bucketIndex] <- item
-				subSlice[i] = <-exchangeChannels[workerIndex]
+	bucketIndex := initBucket
+	for {
+		nextIndex := workOnBucket(input, finalizedPivotPositions, buckets, qsortWorkerCh, localBuffer, bucketIndex)
+
+		// if bucketIndex is -1, then randomly choose a bucket with non-empty buffer
+		if nextIndex == -1 {
+			for index, buffer := range localBuffer {
+				b := buckets[index]
+				b.lock.RLock()
+				itemsToBeCleaned := b.endPos - b.startPos - b.cleanedPos
+				b.lock.RUnlock()
+				if itemsToBeCleaned > 0 || len(buffer) > 0 {
+					nextIndex = index
+					break
+				}
 			}
 		}
-
-		// after the bucket is finished, pass the subslice to qsort for further processing
-		qsortWorkerCh <- subSlice
-	*/
+		if nextIndex == -1 {
+			// there is no further bucket need working, this worker can be returned
+			return
+		}
+		bucketIndex = nextIndex
+	}
 }
 
 func bufferToBusket(slice []int, buff *[]int, b *bucket) {
@@ -50,13 +59,15 @@ func bufferToBusket(slice []int, buff *[]int, b *bucket) {
 	buff = &workingBuffer
 }
 
-func workOnBucket(input, finalizedPivotPositions []int, buckets []bucket, localBuffer map[int][]int, workingIndex int) (nextBucketIdx int) {
+// nextBucketIdx == -1 means the workingBucket has all off-bucket item cleaned
+func workOnBucket(input, finalizedPivotPositions []int, buckets []bucket, qsortWorkerCh chan []int, localBuffer map[int][]int, workingIndex int) (nextBucketIdx int) {
 	b := &buckets[workingIndex]
 	nextBucketIdx = -1
 
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
+	completedPosOriginal := b.completedPos
 	subSlice := input[b.startPos:b.endPos]
 	workingBuffer := localBuffer[workingIndex]
 
@@ -88,6 +99,11 @@ func workOnBucket(input, finalizedPivotPositions []int, buckets []bucket, localB
 
 	localBuffer[workingIndex] = workingBuffer
 
+	// step 4: if the bucket is fully completed, pass it to the successive qsort worker
+	if completedPosOriginal != b.completedPos && b.completedPos == len(subSlice) {
+		qsortWorkerCh <- subSlice
+	}
+
 	return nextBucketIdx
 }
 
@@ -98,7 +114,7 @@ func qsortWithBucketV3(input []int) {
 	// prepare the pivots, and then move the pivots to final location
 	pivotPositions := getPivotPositions(input, 10240)
 	pivots := countBucketSize(input, pivotPositions)
-	mergedPivots := mergePivots(input, pivots, 1000)
+	mergedPivots := mergePivots(input, pivots, 4096-1)
 	finalizedPivotPositions := relocatePivots(input, mergedPivots)
 	pivotCount := len(finalizedPivotPositions)
 
@@ -129,10 +145,10 @@ func qsortWithBucketV3(input []int) {
 	for i := 0; i < len(temp)-1; i++ {
 		buckets[i] = bucket{
 			startPos:     temp[i] + 1,
-			completedPos: temp[i] + 1,
-			cleanedPos:   temp[i] + 1,
 			endPos:       temp[i+1],
-			lock:         &sync.Mutex{},
+			completedPos: 0,
+			cleanedPos:   0,
+			lock:         &sync.RWMutex{},
 		}
 	}
 
