@@ -112,9 +112,9 @@ func qsortWithBucketV3(input []int) {
 	threadNum := runtime.NumCPU()
 
 	// prepare the pivots, and then move the pivots to final location
-	pivotPositions := getPivotPositions(input, 10240)
+	pivotPositions := getPivotPositions(input, 10)
 	pivots := countBucketSize(input, pivotPositions)
-	mergedPivots := mergePivots(input, pivots, 4096-1)
+	mergedPivots := mergePivots(input, pivots, 5)
 	finalizedPivotPositions := relocatePivots(input, mergedPivots)
 	pivotCount := len(finalizedPivotPositions)
 
@@ -153,7 +153,7 @@ func qsortWithBucketV3(input []int) {
 	}
 
 	// start the bucket workers
-	for i := 0; i < runtime.NumCPU()*2; i++ {
+	for i := 0; i < runtime.NumCPU()*2 && i < len(buckets); i++ {
 		go bucketWorkerV3(input, finalizedPivotPositions, buckets, ch2, i)
 	}
 
