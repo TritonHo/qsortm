@@ -112,9 +112,12 @@ func qsortWithBucketV3(input []int) {
 	threadNum := runtime.NumCPU()
 
 	// prepare the pivots, and then move the pivots to final location
-	pivotPositions := getPivotPositions(input, 2048-1)
+	pivotPositions := getPivotPositions(input, 4096-1)
 	pivots := countBucketSize(input, pivotPositions)
-	mergedPivots := mergePivots(input, pivots, 1024-1)
+
+	// we must ensure each bucket has size of 1
+	// otherwise it will unable to pass the task to the qsort worker and then unable to finish
+	mergedPivots := mergePivots(input, pivots, 2)
 	finalizedPivotPositions := relocatePivots(input, mergedPivots)
 	pivotCount := len(finalizedPivotPositions)
 
