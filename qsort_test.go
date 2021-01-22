@@ -101,7 +101,7 @@ func TestRelocatePivots(t *testing.T) {
 }
 
 func TestQsortWithBucket(t *testing.T) {
-	array := generateRandomSlice(10000)
+	array := generateRandomSlice(1000000)
 	counters := sliceToCounters(array)
 
 	startTime := time.Now()
@@ -117,7 +117,7 @@ func TestQsortWithBucket(t *testing.T) {
 }
 
 func TestQsortWithBucketV3(t *testing.T) {
-	array := generateRandomSlice(10000)
+	array := generateRandomSlice(1000000)
 	counters := sliceToCounters(array)
 
 	startTime := time.Now()
