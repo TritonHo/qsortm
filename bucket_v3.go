@@ -56,7 +56,7 @@ func bufferToBusket(slice []int, buff *[]int, b *bucket) {
 		b.completedPos++
 		workingBuffer = workingBuffer[:len(workingBuffer)-1]
 	}
-	buff = &workingBuffer
+	*buff = workingBuffer
 }
 
 // nextBucketIdx == -1 means the workingBucket has all off-bucket item cleaned
