@@ -114,11 +114,7 @@ func qsortWithBucketV3(input []int) {
 	// prepare the pivots, and then move the pivots to final location
 	pivotPositions := getPivotPositions(input, 4096-1)
 	pivots := countBucketSize(input, pivotPositions)
-
-	// we must ensure each bucket has size of 1
-	// otherwise it will unable to pass the task to the qsort worker and then unable to finish
-	mergedPivots := mergePivots(input, pivots, 2)
-	finalizedPivotPositions := relocatePivots(input, mergedPivots)
+	finalizedPivotPositions := relocatePivots(input, pivots)
 	pivotCount := len(finalizedPivotPositions)
 
 	wg := sync.WaitGroup{}
@@ -137,9 +133,6 @@ func qsortWithBucketV3(input []int) {
 	// start the qsort channel inverter
 	go channelInverterV2(ch2, ch1)
 
-	// add the number of remainingTasks
-	remainingTaskNum.Add(pivotCount + 1)
-
 	// build the starting and ending point of each bucket
 	temp := append([]int{-1}, finalizedPivotPositions...)
 	temp = append(temp, len(input))
@@ -152,6 +145,11 @@ func qsortWithBucketV3(input []int) {
 			completedPos: 0,
 			cleanedPos:   0,
 			lock:         &sync.RWMutex{},
+		}
+
+		// add the number of remainingTasks
+		if buckets[i].startPos != buckets[i].endPos {
+			remainingTaskNum.Add(1)
 		}
 	}
 
