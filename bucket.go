@@ -88,9 +88,7 @@ func countBucketSize(input, pivotPositions []int) (pivots []pivotWithCount) {
 }
 
 // remarks: mergedPivots is sorted based on referencing value
-func mergePivots(input []int, pivots []pivotWithCount, target int) (mergedPivots []pivotWithCount) {
-	threhold := len(input) / target
-
+func mergePivots(input []int, pivots []pivotWithCount, threhold int) (mergedPivots []pivotWithCount) {
 	// merge the pivots
 	mergedPivots = []pivotWithCount{}
 	total := 0
@@ -187,7 +185,7 @@ func qsortWithBucket(input []int) {
 	// prepare the pivots, and then move the pivots to final location
 	pivotPositions := getPivotPositions(input, threadNum*10)
 	pivots := countBucketSize(input, pivotPositions)
-	mergedPivots := mergePivots(input, pivots, threadNum*2)
+	mergedPivots := mergePivots(input, pivots, len(input)/(threadNum*2))
 	finalizedPivotPositions := relocatePivots(input, mergedPivots)
 	pivotCount := len(finalizedPivotPositions)
 

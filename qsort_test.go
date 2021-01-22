@@ -28,6 +28,26 @@ func isAscSorted(slice []int) bool {
 	return true
 }
 
+func sliceToCounters(slice []int) map[int]int {
+	counters := map[int]int{}
+	for _, item := range slice {
+		counters[item] = counters[item] + 1
+	}
+	return counters
+}
+
+func verifySliceCounters(slice []int, counters map[int]int) bool {
+	for _, item := range slice {
+		counters[item] = counters[item] - 1
+	}
+	for _, v := range counters {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func TestCountBucketSize(t *testing.T) {
 	input := generateRandomSlice(100000)
 
@@ -81,25 +101,51 @@ func TestRelocatePivots(t *testing.T) {
 }
 
 func TestQsortWithBucket(t *testing.T) {
-	array := generateRandomSlice(100000000)
+	array := generateRandomSlice(1000000)
+	counters := sliceToCounters(array)
 
 	startTime := time.Now()
 	qsortWithBucket(array)
 
 	log.Println("TestQsortWithBucket elapsed time:", time.Since(startTime))
 	if isAscSorted(array) == false {
-		t.Error("the sorting is buggy")
+		t.Error("the sorting is buggy, isAscSorted failed")
+	}
+	if verifySliceCounters(array, counters) == false {
+		t.Error("the sorting is buggy, verifySliceCounters failed")
 	}
 }
+
+func TestQsortWithBucketV3(t *testing.T) {
+	array := generateRandomSlice(1000000)
+	counters := sliceToCounters(array)
+
+	startTime := time.Now()
+	qsortWithBucketV3(array)
+
+	log.Println("TestQsortWithBucketV3 elapsed time:", time.Since(startTime))
+	if isAscSorted(array) == false {
+		t.Error("the sorting is buggy, isAscSorted failed")
+	}
+	if verifySliceCounters(array, counters) == false {
+		t.Error("the sorting is buggy, verifySliceCounters failed")
+	}
+
+}
+
 func TestQsortProd(t *testing.T) {
-	array := generateRandomSlice(100000000)
+	array := generateRandomSlice(1000000)
+	counters := sliceToCounters(array)
 
 	startTime := time.Now()
 	qsortProd(array)
 
 	log.Println("TestQsortProd elapsed time:", time.Since(startTime))
 	if isAscSorted(array) == false {
-		t.Error("the sorting is buggy")
+		t.Error("the sorting is buggy, isAscSorted failed")
+	}
+	if verifySliceCounters(array, counters) == false {
+		t.Error("the sorting is buggy, verifySliceCounters failed")
 	}
 }
 
