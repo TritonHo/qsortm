@@ -161,7 +161,7 @@ func relocatePivots(input []int, mergedPivots []pivotWithCount) (finalizedPivotP
 	return finalizedPivotPositions
 }
 
-func bucketWorker(input, finalizedPivotPositions []int, exchangeChannels []chan int, startPos, endPos, workerIndex int, qsortWorkerCh chan []int) {
+func bucketWorker(input, finalizedPivotPositions []int, exchangeChannels []chan int, startPos, endPos, workerIndex int, qsortWorkerCh chan task) {
 	subSlice := input[startPos:endPos]
 	for i, item := range subSlice {
 		fn := func(i int) bool { return item <= input[finalizedPivotPositions[i]] }
@@ -175,7 +175,7 @@ func bucketWorker(input, finalizedPivotPositions []int, exchangeChannels []chan 
 	}
 
 	// after the bucket is finished, pass the subslice to qsort for further processing
-	qsortWorkerCh <- subSlice
+	qsortWorkerCh <- task{startPos: startPos, endPos: endPos}
 }
 
 func qsortWithBucket(input []int) {
@@ -199,14 +199,14 @@ func qsortWithBucket(input []int) {
 	remainingTaskNum := sync.WaitGroup{}
 
 	// ch1 link from inverter --> worker, it should be unbuffered allow FILO behaviour in coordinator
-	ch1 := make(chan []int, threadNum)
+	ch1 := make(chan task, threadNum)
 	// ch2 link from worker --> inverter, it pass the sub-task
-	ch2 := make(chan []int, 100*threadNum)
+	ch2 := make(chan task, 100*threadNum)
 
 	// start the qsort worker
 	wg.Add(threadNum)
 	for i := 0; i < threadNum; i++ {
-		go qsortProdWorker(ch1, ch2, &wg, &remainingTaskNum)
+		go qsortProdWorker(input, ch1, ch2, &wg, &remainingTaskNum)
 	}
 	// start the qsort channel inverter
 	go channelInverterV2(ch2, ch1)

@@ -17,7 +17,7 @@ type bucket struct {
 
 const bufferMaxSize = 100
 
-func bucketWorkerV3(input, finalizedPivotPositions []int, buckets []bucket, qsortWorkerCh chan []int, initBucket int) {
+func bucketWorkerV3(input, finalizedPivotPositions []int, buckets []bucket, qsortWorkerCh chan task, initBucket int) {
 	// first, build the local buffer
 	localBuffer := map[int][]int{}
 	for i := 0; i < len(finalizedPivotPositions)+1; i++ {
@@ -60,7 +60,7 @@ func bufferToBusket(slice []int, buff *[]int, b *bucket) {
 }
 
 // nextBucketIdx == -1 means the workingBucket has all off-bucket item cleaned
-func workOnBucket(input, finalizedPivotPositions []int, buckets []bucket, qsortWorkerCh chan []int, localBuffer map[int][]int, workingIndex int) (nextBucketIdx int) {
+func workOnBucket(input, finalizedPivotPositions []int, buckets []bucket, qsortWorkerCh chan task, localBuffer map[int][]int, workingIndex int) (nextBucketIdx int) {
 	b := &buckets[workingIndex]
 	nextBucketIdx = -1
 
@@ -101,7 +101,7 @@ func workOnBucket(input, finalizedPivotPositions []int, buckets []bucket, qsortW
 
 	// step 4: if the bucket is fully completed, pass it to the successive qsort worker
 	if completedPosOriginal != b.completedPos && b.completedPos == len(subSlice) {
-		qsortWorkerCh <- subSlice
+		qsortWorkerCh <- task{startPos: b.startPos, endPos: b.endPos}
 	}
 
 	return nextBucketIdx
@@ -121,14 +121,14 @@ func qsortWithBucketV3(input []int) {
 	remainingTaskNum := sync.WaitGroup{}
 
 	// ch1 link from inverter --> worker, it should be unbuffered allow FILO behaviour in coordinator
-	ch1 := make(chan []int, threadNum)
+	ch1 := make(chan task, threadNum)
 	// ch2 link from worker --> inverter, it pass the sub-task
-	ch2 := make(chan []int, 100*threadNum)
+	ch2 := make(chan task, 100*threadNum)
 
 	// start the qsort worker
 	wg.Add(threadNum)
 	for i := 0; i < threadNum; i++ {
-		go qsortProdWorker(ch1, ch2, &wg, &remainingTaskNum)
+		go qsortProdWorker(input, ch1, ch2, &wg, &remainingTaskNum)
 	}
 	// start the qsort channel inverter
 	go channelInverterV2(ch2, ch1)
