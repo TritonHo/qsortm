@@ -1,8 +1,9 @@
 package qsortm
 
-// FIXME: fix the pivot selection
-// take input[startPos] as pivot, and then run one iteration
-func qsortPartition(input []int, startPos, endPos int) (pivotPos int) {
+func qsortPartition(input []int, startPos, endPos, pivotPos int) (finalPivotPos int) {
+	// swap the startPos with pivotPos first
+	input[startPos], input[pivotPos] = input[pivotPos], input[startPos]
+
 	pivot := input[startPos]
 
 	startIdx := startPos + 1
@@ -25,7 +26,7 @@ func qsortPartition(input []int, startPos, endPos int) (pivotPos int) {
 	}
 
 	// put back the pivot into correct position
-	pivotPos = startIdx - 1
-	input[startPos], input[pivotPos] = input[pivotPos], pivot
-	return pivotPos
+	finalPivotPos = startIdx - 1
+	input[startPos], input[finalPivotPos] = input[finalPivotPos], pivot
+	return finalPivotPos
 }
