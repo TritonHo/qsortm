@@ -131,7 +131,7 @@ func qsortWithBucketV3(input []int) {
 		go qsortProdWorker(input, ch1, ch2, &wg, &remainingTaskNum)
 	}
 	// start the qsort channel inverter
-	go channelInverterV2(ch2, ch1)
+	go channelInverter(ch2, ch1)
 
 	// build the starting and ending point of each bucket
 	temp := append([]int{-1}, finalizedPivotPositions...)

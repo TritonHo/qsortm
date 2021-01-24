@@ -13,7 +13,7 @@ type task struct {
 	startPos, endPos int
 }
 
-func channelInverterV2(inputCh, outputCh chan task) {
+func channelInverter(inputCh, outputCh chan task) {
 	taskBuffer := []task{}
 	for {
 		newTask, ok := <-inputCh
@@ -80,7 +80,7 @@ func qsortProd(input []int) {
 		go qsortProdWorker(input, ch1, ch2, &wg, &remainingTaskNum)
 	}
 
-	go channelInverterV2(ch2, ch1)
+	go channelInverter(ch2, ch1)
 
 	// add the input to channel
 	remainingTaskNum.Add(1)
