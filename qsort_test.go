@@ -174,7 +174,6 @@ func BenchmarkQsortProdV2(b *testing.B) {
 	qsortProdV2(array)
 }
 
-
 func BenchmarkQsortStandard(b *testing.B) {
 	array := generateRandomSlice(1000000)
 	sort.Ints(array)

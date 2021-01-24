@@ -10,8 +10,8 @@ type sliceRange struct {
 	start, end int
 }
 type subtaskResult struct {
-	left, right                 sliceRange
-	leftFinished, rightFinished int
+	left, right                   sliceRange
+	leftRemaining, rightRemaining int
 }
 type subtask struct {
 	left, right sliceRange
@@ -75,9 +75,14 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 	unfinishedRights := []sliceRange{}
 
 	for {
+		if outstandingSubTaskCount == 0 {
+			break
+		}
+
 		stResult := <-callbackCh
-		unLeft := sliceRange{start: stResult.left.start + stResult.leftFinished, end: stResult.left.end}
-		unRight := sliceRange{start: stResult.right.start, end: stResult.right.end - stResult.rightFinished}
+
+		unLeft := sliceRange{start: stResult.left.end - stResult.leftRemaining, end: stResult.left.end}
+		unRight := sliceRange{start: stResult.right.start, end: stResult.right.start + stResult.rightRemaining}
 
 		// the left has unfinished portion
 		if unLeft.start != unLeft.end {
@@ -104,7 +109,6 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 		}
 		// the right has unfinished portion
 		if unRight.start != unRight.end {
-
 			nextSubTask := subtask{
 				right:      unRight,
 				pivotPos:   pivotPos,
@@ -140,10 +144,6 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 			subtaskCh <- st
 		} else {
 			outstandingSubTaskCount--
-		}
-
-		if outstandingSubTaskCount == 0 {
-			break
 		}
 	}
 
@@ -203,10 +203,10 @@ func subTaskInternal(input []int, st subtask) subtaskResult {
 	}
 
 	result := subtaskResult{
-		left:          st.left,
-		right:         st.right,
-		leftFinished:  st.left.end - startIdx,
-		rightFinished: endIdx - st.right.start + 1,
+		left:           st.left,
+		right:          st.right,
+		leftRemaining:  st.left.end - startIdx,
+		rightRemaining: endIdx - st.right.start + 1,
 	}
 	return result
 }
@@ -275,7 +275,7 @@ func qsortProdV2(input []int) {
 	wg.Add(threadNum)
 	subTaskWg.Add(threadNum)
 	for i := 0; i < threadNum; i++ {
-		go qsortProdWorker(input, ch1, ch2, wg, remainingTaskNum)
+		go qsortProdWorkerV2(input, ch1, ch2, subtaskCh, wg, remainingTaskNum)
 		go subTaskWorker(input, subtaskCh, subTaskWg)
 	}
 

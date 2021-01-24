@@ -30,8 +30,8 @@ func TestSubTaskInternal1(t *testing.T) {
 	expected := []int{10, 5, 4, 3, 2, 1, 15, 14, 13, 12, 11}
 
 	verifyIntArray(t, expected, input)
-	if result.leftFinished != 0 || result.rightFinished != 0 {
-		t.Error("leftFinished / rightFinished not match", result.leftFinished, result.rightFinished)
+	if result.leftRemaining != 0 || result.rightRemaining != 0 {
+		t.Error("leftRemaining / rightRemaining not match", result.leftRemaining, result.rightRemaining)
 	}
 }
 
@@ -48,8 +48,8 @@ func TestSubTaskInternal2(t *testing.T) {
 	expected := []int{10, 5, 4, 3, 2, 15, 1, 14, 13, 12, 11}
 
 	verifyIntArray(t, expected, input)
-	if result.leftFinished != 0 || result.rightFinished != 0 {
-		t.Error("leftFinished / rightFinished not match", result.leftFinished, result.rightFinished)
+	if result.leftRemaining != 0 || result.rightRemaining != 0 {
+		t.Error("leftRemaining / rightRemaining not match", result.leftRemaining, result.rightRemaining)
 	}
 }
 
@@ -66,8 +66,8 @@ func TestSubTaskInternal3(t *testing.T) {
 	expected := []int{10, 5, 4, 3, 14, 15, 1, 2, 13, 12, 11}
 
 	verifyIntArray(t, expected, input)
-	if result.leftFinished != 1 || result.rightFinished != 0 {
-		t.Error("leftFinished / rightFinished not match", result.leftFinished, result.rightFinished)
+	if result.leftRemaining != 1 || result.rightRemaining != 0 {
+		t.Error("leftRemaining / rightRemaining not match", result.leftRemaining, result.rightRemaining)
 	}
 }
 
@@ -84,7 +84,7 @@ func TestSubTaskInternal4(t *testing.T) {
 	expected := []int{10, 5, 4, 3, 14, 15, 1, 2, 13, 12, 11}
 
 	verifyIntArray(t, expected, input)
-	if result.leftFinished != 0 || result.rightFinished != 1 {
-		t.Error("leftFinished / rightFinished not match", result.leftFinished, result.rightFinished)
+	if result.leftRemaining != 0 || result.rightRemaining != 1 {
+		t.Error("leftRemaining / rightRemaining not match", result.leftRemaining, result.rightRemaining)
 	}
 }
