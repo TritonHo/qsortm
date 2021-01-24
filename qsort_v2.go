@@ -51,6 +51,7 @@ func qsortPartitionMulti(input []int, startPos, endPos int, subtaskCh chan subta
 
 	// swap the startPos with pivotPos first
 	input[startPos], input[pivotPos] = input[pivotPos], input[startPos]
+	pivotPos = startPos
 
 	threadNum := runtime.NumCPU()
 	unprocessedLeftIdx := startPos + 1
@@ -76,8 +77,8 @@ func qsortPartitionMulti(input []int, startPos, endPos int, subtaskCh chan subta
 
 	for {
 		stResult := <-callbackCh
-		unLeft := sliceRange{start: stResult.left.start + leftFinished, end: stResult.left.end}
-		unRight := sliceRange{start: stResult.right.start, end: stResult.right.end - rightFinished}
+		unLeft := sliceRange{start: stResult.left.start + stResult.leftFinished, end: stResult.left.end}
+		unRight := sliceRange{start: stResult.right.start, end: stResult.right.end - stResult.rightFinished}
 
 		// the left has unfinished portion
 		if unLeft.start != unLeft.end {
@@ -96,13 +97,54 @@ func qsortPartitionMulti(input []int, startPos, endPos int, subtaskCh chan subta
 				unfinishedRights = unfinishedRights[1:]
 				subtaskCh <- nextSubTask
 			default:
+				// no further right tasks
 				unfinishedLefts = append(unfinishedLefts, unLeft)
 				outstandingSubTaskCount--
 			}
+			continue
 		}
 		// the right has unfinished portion
-		if unfinishedRight.start != unfinishedRight.end {
+		if unRight.start != unRight.end {
+
+			nextSubTask := subtask{
+				right:      unRight,
+				pivotPos:   pivotPos,
+				callbackCh: callbackCh,
+			}
+
+			switch {
+			case unprocessedLeftIdx < unprocessedRightIdx:
+				nextSubTask.left = getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx)
+				subtaskCh <- nextSubTask
+			case len(unfinishedLefts) > 0:
+				nextSubTask.left = unfinishedLefts[0]
+				unfinishedLefts = unfinishedLefts[1:]
+				subtaskCh <- nextSubTask
+			default:
+				// no further left tasks
+				unfinishedRights = append(unfinishedRights, unRight)
+				outstandingSubTaskCount--
+			}
+
 			continue
+		}
+
+		// when the it reach this line, the previous subtask is a perfect match and left nothing unfinished
+		if unprocessedLeftIdx < unprocessedRightIdx {
+			// generate a new subtask
+			st := subtask{
+				left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx),
+				right:      getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx),
+				pivotPos:   pivotPos,
+				callbackCh: callbackCh,
+			}
+			subtaskCh <- st
+		} else {
+			outstandingSubTaskCount--
+		}
+
+		if outstandingSubTaskCount == 0 {
+			break
 		}
 	}
 
