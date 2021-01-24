@@ -2,6 +2,7 @@ package qsortm
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 )
 
@@ -46,10 +47,7 @@ func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int) sliceRange {
 	return r
 }
 
-func subTaskCoordinator(input []int, startPos, endPos int, subtaskCh chan subtask) (finalPivotPos int) {
-	// FIXME: fix the pivot selection
-	pivotPos := startPos
-
+func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
 	input[startPos], input[pivotPos] = input[pivotPos], input[startPos]
 	pivotPos = startPos
@@ -211,4 +209,51 @@ func subTaskInternal(input []int, st subtask) subtaskResult {
 		rightFinished: endIdx - st.right.start + 1,
 	}
 	return result
+}
+
+func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
+
+	// we use multithread version of partitioning, only when the n is large enough
+	// also, when the input is broken into enough tasks, each task should use single thread partitioning instead
+	threadNum := runtime.NumCPU()
+	multiThreadThrehold := len(input) / threadNum
+	if multiThreadThrehold < subTaskBatchSize*threadNum {
+		multiThreadThrehold = subTaskBatchSize * threadNum
+	}
+
+	// if the size of the task is below threshold, it will use the standard library for sorting
+	// too small threshold will cause necessary data exchange between threads and degrade performance
+	const threshold = 10000
+
+	defer wg.Done()
+
+	for t := range inputCh {
+		n := t.endPos - t.startPos
+		switch {
+		case n >= multiThreadThrehold:
+			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
+			pivotPos := t.startPos
+			finalPivotPos := qsortPartitionMultiThread(input, t.startPos, t.endPos, pivotPos, subtaskCh)
+
+			// add the sub-tasks to the queue
+			remainingTaskNum.Add(2)
+			outputCh <- task{startPos: t.startPos, endPos: finalPivotPos}
+			outputCh <- task{startPos: finalPivotPos + 1, endPos: t.endPos}
+		case n > threshold:
+			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
+			pivotPos := t.startPos
+			finalPivotPos := qsortPartition(input, t.startPos, t.endPos, pivotPos)
+
+			// add the sub-tasks to the queue
+			remainingTaskNum.Add(2)
+			outputCh <- task{startPos: t.startPos, endPos: finalPivotPos}
+			outputCh <- task{startPos: finalPivotPos + 1, endPos: t.endPos}
+		case n >= 2:
+			// for small n between 2 to threshold, we switch back to standard library
+			sort.Ints(input[t.startPos:t.endPos])
+		}
+
+		// mark the current task is done
+		remainingTaskNum.Done()
+	}
 }
