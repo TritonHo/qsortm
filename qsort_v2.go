@@ -171,8 +171,8 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 	return finalPivotPos
 }
 
-func subTaskWorker(input []int, subtaskCh chan subtask, wg *sync.WaitGroup) {
-	defer wg.Done()
+func subTaskWorker(input []int, subtaskCh chan subtask, subTaskWg *sync.WaitGroup) {
+	defer subTaskWg.Done()
 
 	for st := range subtaskCh {
 		result := subTaskInternal(input, st)
@@ -256,4 +256,41 @@ func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan 
 		// mark the current task is done
 		remainingTaskNum.Done()
 	}
+}
+
+func qsortProdV2(input []int) {
+	wg := &sync.WaitGroup{}
+	subTaskWg := &sync.WaitGroup{}
+	remainingTaskNum := &sync.WaitGroup{}
+
+	threadNum := runtime.NumCPU()
+	// ch1 link from inverter --> worker, it should be unbuffered allow FILO behaviour in coordinator
+	ch1 := make(chan task, threadNum)
+	// ch2 link from worker --> inverter, it pass the partitioned new task
+	ch2 := make(chan task, 10*threadNum)
+	// subtaskCh link from qsortPartitionMultiThread --> subTaskWorker
+	subtaskCh := make(chan subtask, 10*threadNum)
+
+	// init workers
+	wg.Add(threadNum)
+	subTaskWg.Add(threadNum)
+	for i := 0; i < threadNum; i++ {
+		go qsortProdWorker(input, ch1, ch2, wg, remainingTaskNum)
+		go subTaskWorker(input, subtaskCh, subTaskWg)
+	}
+
+	// init the invertor
+	go channelInverter(ch2, ch1)
+
+	// add the input to channel
+	remainingTaskNum.Add(1)
+	ch1 <- task{startPos: 0, endPos: len(input)}
+	// wait for all task done
+	remainingTaskNum.Wait()
+
+	// let the worker threads die peacefully
+	close(ch2)
+	close(subtaskCh)
+	wg.Wait()
+	subTaskWg.Wait()
 }
