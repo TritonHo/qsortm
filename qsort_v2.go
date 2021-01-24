@@ -2,6 +2,7 @@ package qsortm
 
 import (
 	"runtime"
+	"sync"
 )
 
 type sliceRange struct {
@@ -45,7 +46,7 @@ func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int) sliceRange {
 	return r
 }
 
-func qsortPartitionMulti(input []int, startPos, endPos int, subtaskCh chan subtask) (finalPivotPos int) {
+func subTaskCoordinator(input []int, startPos, endPos int, subtaskCh chan subtask) (finalPivotPos int) {
 	// FIXME: fix the pivot selection
 	pivotPos := startPos
 
@@ -170,4 +171,44 @@ func qsortPartitionMulti(input []int, startPos, endPos int, subtaskCh chan subta
 	finalPivotPos = qsortPartition(input, middleStart-1, middleEnd, pivotPos)
 
 	return finalPivotPos
+}
+
+func subTaskWorker(input []int, subtaskCh chan subtask, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for st := range subtaskCh {
+		result := subTaskInternal(input, st)
+		st.callbackCh <- result
+	}
+}
+
+func subTaskInternal(input []int, st subtask) subtaskResult {
+	pivot := input[st.pivotPos]
+
+	startIdx := st.left.start
+	endIdx := st.right.end - 1
+
+	for {
+		// scan for the swapping pairs
+		for startIdx < st.left.end && input[startIdx] <= pivot {
+			startIdx++
+		}
+		for endIdx >= st.right.start && input[endIdx] > pivot {
+			endIdx--
+		}
+
+		if startIdx == st.left.end || endIdx < st.right.start {
+			break
+		}
+		// perform swapping
+		input[startIdx], input[endIdx] = input[endIdx], input[startIdx]
+	}
+
+	result := subtaskResult{
+		left:          st.left,
+		right:         st.right,
+		leftFinished:  st.left.end - startIdx,
+		rightFinished: endIdx - st.right.start + 1,
+	}
+	return result
 }
