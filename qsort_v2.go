@@ -219,13 +219,13 @@ func subTaskInternal(input []int, st subtask) subtaskResult {
 func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
 	threadNum := runtime.NumCPU()
 
-	// the multithread version of partitioning will be applied only when n >= 100000
+	// the multithread version of partitioning will be applied only when n is large
 	// also, when the input is broken into enough tasks, each task should use single thread partitioning instead
 	// FIXME: where is this 50000 comes from?
 	const multiThreadThrehold = 50000
 
 	// if the size of the task is below threshold, it will use the standard library for sorting
-	// too small threshold will cause necessary data exchange between threads and degrade performance
+	// too small threshold will cause unnecessary data exchange between threads and degrade performance
 	const threshold = 10000
 
 	defer wg.Done()
