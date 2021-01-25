@@ -149,9 +149,29 @@ func TestQsortProd(t *testing.T) {
 	}
 }
 
+func TestQsortProdV2(t *testing.T) {
+	array := generateRandomSlice(1000000)
+	counters := sliceToCounters(array)
+
+	startTime := time.Now()
+	qsortProdV2(array)
+
+	log.Println("TestQsortProdV2 elapsed time:", time.Since(startTime))
+	if isAscSorted(array) == false {
+		t.Error("the sorting is buggy, isAscSorted failed")
+	}
+	if verifySliceCounters(array, counters) == false {
+		t.Error("the sorting is buggy, verifySliceCounters failed")
+	}
+}
+
 func BenchmarkQsortProd(b *testing.B) {
 	array := generateRandomSlice(1000000)
 	qsortProd(array)
+}
+func BenchmarkQsortProdV2(b *testing.B) {
+	array := generateRandomSlice(1000000)
+	qsortProdV2(array)
 }
 
 func BenchmarkQsortStandard(b *testing.B) {

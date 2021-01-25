@@ -13,7 +13,7 @@ type task struct {
 	startPos, endPos int
 }
 
-func channelInverterV2(inputCh, outputCh chan task) {
+func channelInverter(inputCh, outputCh chan task) {
 	taskBuffer := []task{}
 	for {
 		newTask, ok := <-inputCh
@@ -47,12 +47,14 @@ func qsortProdWorker(input []int, inputCh, outputCh chan task, wg, remainingTask
 		n := t.endPos - t.startPos
 		switch {
 		case n > threshold:
-			pivotPos := qsortPartition(input, t.startPos, t.endPos)
+			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
+			pivotPos := t.startPos
+			finalPivotPos := qsortPartition(input, t.startPos, t.endPos, pivotPos)
 
 			// add the sub-tasks to the queue
 			remainingTaskNum.Add(2)
-			outputCh <- task{startPos: t.startPos, endPos: pivotPos}
-			outputCh <- task{startPos: pivotPos + 1, endPos: t.endPos}
+			outputCh <- task{startPos: t.startPos, endPos: finalPivotPos}
+			outputCh <- task{startPos: finalPivotPos + 1, endPos: t.endPos}
 		case n >= 2:
 			// for small n between 2 to threshold, we switch back to standard library
 			sort.Ints(input[t.startPos:t.endPos])
@@ -78,7 +80,7 @@ func qsortProd(input []int) {
 		go qsortProdWorker(input, ch1, ch2, &wg, &remainingTaskNum)
 	}
 
-	go channelInverterV2(ch2, ch1)
+	go channelInverter(ch2, ch1)
 
 	// add the input to channel
 	remainingTaskNum.Add(1)

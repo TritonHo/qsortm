@@ -209,7 +209,7 @@ func qsortWithBucket(input []int) {
 		go qsortProdWorker(input, ch1, ch2, &wg, &remainingTaskNum)
 	}
 	// start the qsort channel inverter
-	go channelInverterV2(ch2, ch1)
+	go channelInverter(ch2, ch1)
 
 	// start the bucket workers
 	remainingTaskNum.Add(pivotCount + 1)
