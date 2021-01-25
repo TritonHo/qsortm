@@ -19,12 +19,10 @@ type subtask struct {
 	callbackCh  chan subtaskResult
 }
 
-const subTaskBatchSize = 1000
-
-func getNewLeftRange(unprocessedLeftIdx, unprocessedRightIdx *int) sliceRange {
+func getNewLeftRange(unprocessedLeftIdx, unprocessedRightIdx *int, batchSize int) sliceRange {
 	r := sliceRange{
 		start: *unprocessedLeftIdx,
-		end:   *unprocessedLeftIdx + subTaskBatchSize,
+		end:   *unprocessedLeftIdx + batchSize,
 	}
 	if *unprocessedRightIdx < r.end {
 		r.end = *unprocessedRightIdx
@@ -34,9 +32,9 @@ func getNewLeftRange(unprocessedLeftIdx, unprocessedRightIdx *int) sliceRange {
 	return r
 }
 
-func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int) sliceRange {
+func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int, batchSize int) sliceRange {
 	r := sliceRange{
-		start: *unprocessedRightIdx - subTaskBatchSize,
+		start: *unprocessedRightIdx - batchSize,
 		end:   *unprocessedRightIdx,
 	}
 	if r.start < *unprocessedLeftIdx {
@@ -58,13 +56,12 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 	callbackCh := make(chan subtaskResult, threadNum)
 	outstandingSubTaskCount := threadNum
 
-	// remarks: we only allows the task with N much larger than subTaskBatchSize * threadNum use this function.
-	// this no need for handling for small N
-	// FIXME: is this rule hold true?
+	// create initial subtasks, which has 10% of the n
+	initBatchSize := (endPos - startPos) / 10 / (2 * threadNum)
 	for i := 0; i < threadNum; i++ {
 		st := subtask{
-			left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx),
-			right:      getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx),
+			left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, initBatchSize),
+			right:      getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx, initBatchSize),
 			pivotPos:   pivotPos,
 			callbackCh: callbackCh,
 		}
@@ -74,9 +71,17 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 	unfinishedLefts := []sliceRange{}
 	unfinishedRights := []sliceRange{}
 
+	// FIXME: it should be a value that begin with large number
+	// and then slowly decreased to small number
+	const subTaskMinBatchSize = 100
 	for {
 		if outstandingSubTaskCount == 0 {
 			break
+		}
+		// FIXME: determine better batchSize
+		batchSize := (unprocessedRightIdx - unprocessedLeftIdx) / (4 * threadNum)
+		if batchSize < subTaskMinBatchSize {
+			batchSize = subTaskMinBatchSize
 		}
 
 		stResult := <-callbackCh
@@ -94,7 +99,7 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 
 			switch {
 			case unprocessedLeftIdx < unprocessedRightIdx:
-				nextSubTask.right = getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx)
+				nextSubTask.right = getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize)
 				subtaskCh <- nextSubTask
 			case len(unfinishedRights) > 0:
 				nextSubTask.right = unfinishedRights[0]
@@ -117,7 +122,7 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 
 			switch {
 			case unprocessedLeftIdx < unprocessedRightIdx:
-				nextSubTask.left = getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx)
+				nextSubTask.left = getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize)
 				subtaskCh <- nextSubTask
 			case len(unfinishedLefts) > 0:
 				nextSubTask.left = unfinishedLefts[0]
@@ -136,8 +141,8 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 		if unprocessedLeftIdx < unprocessedRightIdx {
 			// generate a new subtask
 			st := subtask{
-				left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx),
-				right:      getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx),
+				left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize),
+				right:      getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize),
 				pivotPos:   pivotPos,
 				callbackCh: callbackCh,
 			}
@@ -212,14 +217,12 @@ func subTaskInternal(input []int, st subtask) subtaskResult {
 }
 
 func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
-
-	// we use multithread version of partitioning, only when the n is large enough
-	// also, when the input is broken into enough tasks, each task should use single thread partitioning instead
 	threadNum := runtime.NumCPU()
-	multiThreadThrehold := len(input) / threadNum
-	if multiThreadThrehold < subTaskBatchSize*threadNum {
-		multiThreadThrehold = subTaskBatchSize * threadNum
-	}
+
+	// the multithread version of partitioning will be applied only when n >= 100000
+	// also, when the input is broken into enough tasks, each task should use single thread partitioning instead
+	// FIXME: where is this 50000 comes from?
+	const multiThreadThrehold = 50000
 
 	// if the size of the task is below threshold, it will use the standard library for sorting
 	// too small threshold will cause necessary data exchange between threads and degrade performance
@@ -230,7 +233,7 @@ func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan 
 	for t := range inputCh {
 		n := t.endPos - t.startPos
 		switch {
-		case n >= multiThreadThrehold:
+		case n >= multiThreadThrehold && n > len(input)/threadNum*2:
 			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
 			pivotPos := t.startPos
 			finalPivotPos := qsortPartitionMultiThread(input, t.startPos, t.endPos, pivotPos, subtaskCh)
@@ -265,7 +268,7 @@ func qsortProdV2(input []int) {
 
 	threadNum := runtime.NumCPU()
 	// ch1 link from inverter --> worker, it should be unbuffered allow FILO behaviour in coordinator
-	ch1 := make(chan task, threadNum)
+	ch1 := make(chan task, 1)
 	// ch2 link from worker --> inverter, it pass the partitioned new task
 	ch2 := make(chan task, 10*threadNum)
 	// subtaskCh link from qsortPartitionMultiThread --> subTaskWorker
