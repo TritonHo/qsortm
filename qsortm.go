@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
+func taskWorker(input []int, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
 	threadNum := runtime.NumCPU()
 
 	// the multithread version of partitioning will be applied only when n is large
@@ -51,24 +51,24 @@ func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan 
 	}
 }
 
-func qsortProdV2(input []int) {
-	wg := &sync.WaitGroup{}
+func Sort(input []int) {
+	taskWg := &sync.WaitGroup{}
 	subTaskWg := &sync.WaitGroup{}
 	remainingTaskNum := &sync.WaitGroup{}
 
 	threadNum := runtime.NumCPU()
-	// ch1 link from inverter --> worker, it should be unbuffered allow FILO behaviour in coordinator
+	// ch1 link from inverter --> taskWorker, it should be unbuffered allow FILO behaviour in coordinator
 	ch1 := make(chan task, 1)
-	// ch2 link from worker --> inverter, it pass the partitioned new task
+	// ch2 link from taskWorker --> inverter, it pass the partitioned new task
 	ch2 := make(chan task, 10*threadNum)
-	// subtaskCh link from qsortPartitionMultiThread --> subTaskWorker
+	// subtaskCh link from partitionMultiThread --> subTaskWorker
 	subtaskCh := make(chan subtask, 10*threadNum)
 
 	// init workers
-	wg.Add(threadNum)
+	taskWg.Add(threadNum)
 	subTaskWg.Add(threadNum)
 	for i := 0; i < threadNum; i++ {
-		go qsortProdWorkerV2(input, ch1, ch2, subtaskCh, wg, remainingTaskNum)
+		go taskWorker(input, ch1, ch2, subtaskCh, taskWg, remainingTaskNum)
 		go subTaskWorker(input, subtaskCh, subTaskWg)
 	}
 
@@ -81,9 +81,10 @@ func qsortProdV2(input []int) {
 	// wait for all task done
 	remainingTaskNum.Wait()
 
-	// let the worker threads die peacefully
+	// let the worker threads die peacefully before exit
+	// we must NOT have any zombie worker thread left
 	close(ch2)
 	close(subtaskCh)
-	wg.Wait()
+	taskWg.Wait()
 	subTaskWg.Wait()
 }

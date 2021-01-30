@@ -10,7 +10,6 @@ import (
 )
 
 func generateRandomSlice(n int) []int {
-
 	slice := make([]int, n, n)
 	for i := 0; i < n; i++ {
 		slice[i] = rand.Int()
@@ -19,7 +18,6 @@ func generateRandomSlice(n int) []int {
 }
 
 func isAscSorted(slice []int) bool {
-
 	for i := 1; i < len(slice); i++ {
 		if slice[i-1] > slice[i] {
 			return false
@@ -48,12 +46,12 @@ func verifySliceCounters(slice []int, counters map[int]int) bool {
 	return true
 }
 
-func TestQsortProdV2(t *testing.T) {
+func TestSort(t *testing.T) {
 	array := generateRandomSlice(1000000)
 	counters := sliceToCounters(array)
 
 	startTime := time.Now()
-	qsortProdV2(array)
+	Sort(array)
 
 	log.Println("TestQsortProdV2 elapsed time:", time.Since(startTime))
 	if isAscSorted(array) == false {
@@ -64,12 +62,12 @@ func TestQsortProdV2(t *testing.T) {
 	}
 }
 
-func BenchmarkQsortProdV2(b *testing.B) {
+func BenchmarkQsortm(b *testing.B) {
 	array := generateRandomSlice(1000000)
-	qsortProdV2(array)
+	Sort(array)
 }
 
-func BenchmarkQsortStandard(b *testing.B) {
+func BenchmarkStandard(b *testing.B) {
 	array := generateRandomSlice(1000000)
 	sort.Ints(array)
 }
