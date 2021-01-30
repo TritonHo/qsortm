@@ -1,6 +1,7 @@
 package qsortm
 
-func qsortPartition(input []int, startPos, endPos, pivotPos int) (finalPivotPos int) {
+// perform single thread partitioning
+func partitionSingle(input []int, startPos, endPos, pivotPos int) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
 	input[startPos], input[pivotPos] = input[pivotPos], input[startPos]
 

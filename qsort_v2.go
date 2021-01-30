@@ -171,7 +171,7 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 	pivotPos = middleStart - 1
 
 	// run the simple single thread qsort partitioning
-	finalPivotPos = qsortPartition(input, middleStart-1, middleEnd, pivotPos)
+	finalPivotPos = partitionSingle(input, middleStart-1, middleEnd, pivotPos)
 
 	return finalPivotPos
 }
@@ -245,7 +245,7 @@ func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan 
 		case n > threshold:
 			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
 			pivotPos := t.startPos
-			finalPivotPos := qsortPartition(input, t.startPos, t.endPos, pivotPos)
+			finalPivotPos := partitionSingle(input, t.startPos, t.endPos, pivotPos)
 
 			// add the sub-tasks to the queue
 			remainingTaskNum.Add(2)
