@@ -179,12 +179,12 @@ func subTaskWorker(input []int, subtaskCh chan subtask, subTaskWg *sync.WaitGrou
 	defer subTaskWg.Done()
 
 	for st := range subtaskCh {
-		result := subTaskInternal(input, st)
+		result := swappingOnBlock(input, st)
 		st.callbackCh <- result
 	}
 }
 
-func subTaskInternal(input []int, st subtask) subtaskResult {
+func swappingOnBlock(input []int, st subtask) subtaskResult {
 	pivot := input[st.pivotPos]
 
 	startIdx := st.left.start
