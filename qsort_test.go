@@ -48,7 +48,6 @@ func verifySliceCounters(slice []int, counters map[int]int) bool {
 	return true
 }
 
-
 func TestQsortProd(t *testing.T) {
 	array := generateRandomSlice(1000000)
 	counters := sliceToCounters(array)
