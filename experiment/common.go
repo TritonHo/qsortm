@@ -1,4 +1,4 @@
-package qsortm
+package experiment
 
 func qsortPartition(input []int, startPos, endPos, pivotPos int) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
