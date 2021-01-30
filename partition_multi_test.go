@@ -17,7 +17,7 @@ func verifyIntArray(t *testing.T, expectedInput, actualInput []int) {
 	}
 }
 
-func TestSubTaskInternal1(t *testing.T) {
+func TestSwappingOnBlock1(t *testing.T) {
 	input := getSampleInput()
 
 	st := subtask{
@@ -26,7 +26,7 @@ func TestSubTaskInternal1(t *testing.T) {
 		pivotPos: 0,
 	}
 
-	result := subTaskInternal(input, st)
+	result := swappingOnBlock(input, st)
 	expected := []int{10, 5, 4, 3, 2, 1, 15, 14, 13, 12, 11}
 
 	verifyIntArray(t, expected, input)
@@ -35,7 +35,7 @@ func TestSubTaskInternal1(t *testing.T) {
 	}
 }
 
-func TestSubTaskInternal2(t *testing.T) {
+func TestSwappingOnBlock2(t *testing.T) {
 	input := getSampleInput()
 
 	st := subtask{
@@ -44,7 +44,7 @@ func TestSubTaskInternal2(t *testing.T) {
 		pivotPos: 0,
 	}
 
-	result := subTaskInternal(input, st)
+	result := swappingOnBlock(input, st)
 	expected := []int{10, 5, 4, 3, 2, 15, 1, 14, 13, 12, 11}
 
 	verifyIntArray(t, expected, input)
@@ -53,7 +53,7 @@ func TestSubTaskInternal2(t *testing.T) {
 	}
 }
 
-func TestSubTaskInternal3(t *testing.T) {
+func TestSwappingOnBlock3(t *testing.T) {
 	input := getSampleInput()
 
 	st := subtask{
@@ -62,7 +62,7 @@ func TestSubTaskInternal3(t *testing.T) {
 		pivotPos: 0,
 	}
 
-	result := subTaskInternal(input, st)
+	result := swappingOnBlock(input, st)
 	expected := []int{10, 5, 4, 3, 14, 15, 1, 2, 13, 12, 11}
 
 	verifyIntArray(t, expected, input)
@@ -71,7 +71,7 @@ func TestSubTaskInternal3(t *testing.T) {
 	}
 }
 
-func TestSubTaskInternal4(t *testing.T) {
+func TestSwappingOnBlock4(t *testing.T) {
 	input := getSampleInput()
 
 	st := subtask{
@@ -80,7 +80,7 @@ func TestSubTaskInternal4(t *testing.T) {
 		pivotPos: 0,
 	}
 
-	result := subTaskInternal(input, st)
+	result := swappingOnBlock(input, st)
 	expected := []int{10, 5, 4, 3, 14, 15, 1, 2, 13, 12, 11}
 
 	verifyIntArray(t, expected, input)
