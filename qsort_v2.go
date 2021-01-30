@@ -45,7 +45,7 @@ func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int, batchSize in
 	return r
 }
 
-func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
+func partitionMultiThread(input []int, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
 	input[startPos], input[pivotPos] = input[pivotPos], input[startPos]
 	pivotPos = startPos
@@ -171,7 +171,7 @@ func qsortPartitionMultiThread(input []int, startPos, endPos, pivotPos int, subt
 	pivotPos = middleStart - 1
 
 	// run the simple single thread qsort partitioning
-	finalPivotPos = partitionSingle(input, middleStart-1, middleEnd, pivotPos)
+	finalPivotPos = partitionSingleThread(input, middleStart-1, middleEnd, pivotPos)
 
 	return finalPivotPos
 }
@@ -236,7 +236,7 @@ func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan 
 		case n >= multiThreadThrehold && n > len(input)/threadNum*2:
 			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
 			pivotPos := t.startPos
-			finalPivotPos := qsortPartitionMultiThread(input, t.startPos, t.endPos, pivotPos, subtaskCh)
+			finalPivotPos := partitionMultiThread(input, t.startPos, t.endPos, pivotPos, subtaskCh)
 
 			// add the sub-tasks to the queue
 			remainingTaskNum.Add(2)
@@ -245,7 +245,7 @@ func qsortProdWorkerV2(input []int, inputCh, outputCh chan task, subtaskCh chan 
 		case n > threshold:
 			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
 			pivotPos := t.startPos
-			finalPivotPos := partitionSingle(input, t.startPos, t.endPos, pivotPos)
+			finalPivotPos := partitionSingleThread(input, t.startPos, t.endPos, pivotPos)
 
 			// add the sub-tasks to the queue
 			remainingTaskNum.Add(2)
