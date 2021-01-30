@@ -1,4 +1,4 @@
-package qsortm
+package experiment
 
 import (
 	// "log"
