@@ -16,9 +16,9 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 	// FIXME: where is this 50000 comes from?
 	const multiThreadThrehold = 50000
 
-	// if the size of the task is below threshold, it will use the standard library for sorting
+	// if the size of the task is below threshold, it will use the insertion sort for sorting
 	// too small threshold will cause unnecessary data exchange between threads and degrade performance
-	const threshold = 10000
+	const threshold = 100
 
 	defer wg.Done()
 
@@ -44,9 +44,9 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 			outputCh <- task{startPos: t.startPos, endPos: finalPivotPos}
 			outputCh <- task{startPos: finalPivotPos + 1, endPos: t.endPos}
 		case n >= 2:
-			// for small n between 2 to threshold, we switch back to standard library
-			// FIXME: handle it
-			// sort.Ints(input[t.startPos:t.endPos])
+			// for small n between 2 to threshold, we switch to insertion sort / shell sort
+			// FIXME: use shell sort instead
+			insertionSort(data, t.startPos, t.endPos)
 		}
 
 		// mark the current task is done
