@@ -68,35 +68,48 @@ func handleFragments(data Interface, unLefts, unRights []sliceRange, unprocessed
 	insertionSort(byLeft(unLefts), 0, len(unLefts))
 	insertionSort(byRight(unRights), 0, len(unRights))
 
-	// step 2: find out the leftest left-block, and rightest right-block, and do the swapping
+	// step 2: do the swapping, until one side exhausted
+	isMiddleUsed := false
+	unMiddle := sliceRange{start: unprocessedLeftIdx, end: unprocessedRightIdx}
 	for len(unLefts) > 0 && len(unRights) > 0 {
 		leftRemaining, rightRemaining := swappingOnBlock(data, unLefts[0], unRights[0], pivotPos)
 
-		newLeft := unLefts[0].getNewLeft(leftRemaining)
-		newRight := unRights[0].getNewRight(rightRemaining)
-		if newLeft.start == newLeft.end {
+		unLefts[0] = unLefts[0].getNewLeft(leftRemaining)
+		unRights[0] = unRights[0].getNewRight(rightRemaining)
+		if unLefts[0].start == unLefts[0].end {
 			unLefts = unLefts[1:]
-		} else {
-			unLefts[0] = newLeft
 		}
-		if newRight.start == newRight.end {
+		if unRights[0].start == unRights[0].end {
 			unRights = unRights[1:]
-		} else {
-			unRights[0] = newRight
+		}
+
+		// if one side exhaused, add the middle and continue
+		if len(unLefts) == 0 && isMiddleUsed == false {
+			isMiddleUsed = true
+			unLefts = append(unLefts, unMiddle)
+			unprocessedLeftIdx = unprocessedRightIdx
+		}
+		if len(unRights) == 0 && isMiddleUsed == false {
+			isMiddleUsed = true
+			unRights = append(unRights, unMiddle)
+			unprocessedRightIdx = unprocessedLeftIdx
 		}
 	}
-	/*
-		unMiddle := {start: unprocessedLeftIdx, end: unprocessedRightIdx}
-		if len(unLefts) > 0 {
-			leftRemaining, rightRemaining := swappingOnBlock(data, unLefts[0], unMiddle, pivotPos)
 
-			newLeft := sliceRange{start: unLefts[0].end - leftRemaining, end: unLefts[0].end}
-			newRight := sliceRange{start: unRights[0].start, end: unRights[0].start + rightRemaining}
-
+	// find out the "middle" portion that need to perform qsort partition once again
+	middleStart, middleEnd := unprocessedLeftIdx, unprocessedRightIdx
+	for _, unLeft := range unLefts {
+		if unLeft.start < middleStart {
+			middleStart = unLeft.start
 		}
-	*/
-	// FIXME: implement it
-	return 0, 0
+	}
+	for _, unRight := range unRights {
+		if unRight.end > middleEnd {
+			middleEnd = unRight.end
+		}
+	}
+
+	return middleStart, middleEnd
 }
 
 func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
@@ -125,7 +138,7 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 	unfinishedLefts := []sliceRange{}
 	unfinishedRights := []sliceRange{}
 
-	//  it should be a value that begin with large number
+	// it should be a value that begin with large number
 	// and then slowly decreased to small number
 	const subTaskMinBatchSize = 100
 	reservedUnprocessed := subTaskMinBatchSize * threadNum
