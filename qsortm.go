@@ -36,8 +36,7 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 				isInnerLoopEnd = true
 			default:
 				var finalPivotPos int
-				// FIXME: choose a better pivot choosing algorithm instead of hardcoding
-				pivotPos := t.startPos
+				pivotPos := getPivotPos(data, t.startPos, t.endPos)
 				if n >= multiThreadThrehold && n > data.Len()/threadNum*2 {
 					finalPivotPos = partitionMultiThread(data, t.startPos, t.endPos, pivotPos, subtaskCh)
 				} else {
