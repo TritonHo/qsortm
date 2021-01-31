@@ -55,8 +55,8 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 	callbackCh := make(chan subtaskResult, threadNum)
 	outstandingSubTaskCount := threadNum
 
-	// create initial subtasks, which has 10% of the n
-	initBatchSize := (endPos - startPos) / 10 / (2 * threadNum)
+	// create initial subtasks, which has 25% of the n
+	initBatchSize := (endPos - startPos) / 4 / (2 * threadNum)
 	for i := 0; i < threadNum; i++ {
 		st := subtask{
 			left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, initBatchSize),
@@ -70,7 +70,7 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 	unfinishedLefts := []sliceRange{}
 	unfinishedRights := []sliceRange{}
 
-	// FIXME: it should be a value that begin with large number
+	//  it should be a value that begin with large number
 	// and then slowly decreased to small number
 	const subTaskMinBatchSize = 100
 	for {
