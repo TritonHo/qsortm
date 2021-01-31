@@ -73,12 +73,13 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 	//  it should be a value that begin with large number
 	// and then slowly decreased to small number
 	const subTaskMinBatchSize = 100
+	reservedUnprocessed := subTaskMinBatchSize * threadNum
 	for {
 		if outstandingSubTaskCount == 0 {
 			break
 		}
 		// FIXME: determine better batchSize
-		batchSize := (unprocessedRightIdx - unprocessedLeftIdx) / (4 * threadNum)
+		batchSize := (unprocessedRightIdx - unprocessedLeftIdx) / (2 * threadNum)
 		if batchSize < subTaskMinBatchSize {
 			batchSize = subTaskMinBatchSize
 		}
@@ -96,16 +97,11 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 				callbackCh: callbackCh,
 			}
 
-			switch {
-			case unprocessedLeftIdx < unprocessedRightIdx:
+			if unprocessedRightIdx-unprocessedLeftIdx > reservedUnprocessed {
 				nextSubTask.right = getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize)
 				subtaskCh <- nextSubTask
-			case len(unfinishedRights) > 0:
-				nextSubTask.right = unfinishedRights[0]
-				unfinishedRights = unfinishedRights[1:]
-				subtaskCh <- nextSubTask
-			default:
-				// no further right tasks
+			} else {
+				// stop further processing and remember the unprocessed prositions
 				unfinishedLefts = append(unfinishedLefts, unLeft)
 				outstandingSubTaskCount--
 			}
@@ -119,25 +115,19 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 				callbackCh: callbackCh,
 			}
 
-			switch {
-			case unprocessedLeftIdx < unprocessedRightIdx:
+			if unprocessedRightIdx-unprocessedLeftIdx > reservedUnprocessed {
 				nextSubTask.left = getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize)
 				subtaskCh <- nextSubTask
-			case len(unfinishedLefts) > 0:
-				nextSubTask.left = unfinishedLefts[0]
-				unfinishedLefts = unfinishedLefts[1:]
-				subtaskCh <- nextSubTask
-			default:
-				// no further left tasks
+			} else {
+				// stop further processing and remember the unprocessed prositions
 				unfinishedRights = append(unfinishedRights, unRight)
 				outstandingSubTaskCount--
 			}
-
 			continue
 		}
 
 		// when the it reach this line, the previous subtask is a perfect match and left nothing unfinished
-		if unprocessedLeftIdx < unprocessedRightIdx {
+		if unprocessedRightIdx-unprocessedLeftIdx > reservedUnprocessed {
 			// generate a new subtask
 			st := subtask{
 				left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize),
@@ -150,6 +140,8 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 			outstandingSubTaskCount--
 		}
 	}
+
+	// FIXME: handle the remaining
 
 	// find out the "middle" portion that need to perform qsort partition once again
 	middleStart, middleEnd := unprocessedLeftIdx, unprocessedRightIdx
