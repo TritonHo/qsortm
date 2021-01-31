@@ -209,20 +209,9 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 		}
 	}
 
-	// FIXME: handle the remaining
-
-	// find out the "middle" portion that need to perform qsort partition once again
-	middleStart, middleEnd := unprocessedLeftIdx, unprocessedRightIdx
-	for _, unLeft := range unfinishedLefts {
-		if unLeft.start < middleStart {
-			middleStart = unLeft.start
-		}
-	}
-	for _, unRight := range unfinishedRights {
-		if unRight.end > middleEnd {
-			middleEnd = unRight.end
-		}
-	}
+	// complete the unprocessed fragments in previous steps
+	// also, find out the "middle" portion that need to perform qsort partition once again
+	middleStart, middleEnd := handleFragments(data, unfinishedLefts, unfinishedRights, unprocessedLeftIdx, unprocessedRightIdx, pivotPos)
 
 	// now we knows the middle portion that need partitioning
 	// relocate the pivot to middleStart - 1
