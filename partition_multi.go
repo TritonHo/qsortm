@@ -44,6 +44,24 @@ func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int, batchSize in
 	return r
 }
 
+/*
+func handleFragments(unLefts, unRights []sliceRange, unprocessedLeftIdx, unprocessedRightIdx int ) (middleLeft, middleRight int) {
+
+	// step 1: find out the leftest left-block, and rightest right-block, and do the swapping
+	for len(unLefts) > 0 && len(unRights) > 0 {
+
+		//
+
+	}
+
+
+
+
+
+
+}
+*/
+
 func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
 	data.Swap(startPos, pivotPos)
@@ -171,36 +189,41 @@ func subTaskWorker(data Interface, subtaskCh chan subtask, subTaskWg *sync.WaitG
 	defer subTaskWg.Done()
 
 	for st := range subtaskCh {
-		result := swappingOnBlock(data, st)
+		result := subtaskResult{
+			left:  st.left,
+			right: st.right,
+		}
+
+		result.leftRemaining, result.rightRemaining = swappingOnBlock(data, st.left, st.right, st.pivotPos)
+
 		st.callbackCh <- result
 	}
 }
 
-func swappingOnBlock(data Interface, st subtask) subtaskResult {
-	startIdx := st.left.start
-	endIdx := st.right.end - 1
+func swappingOnBlock(data Interface, left, right sliceRange, pivotPos int) (leftRemaining, rightRemaining int) {
+
+	//st subtask) subtaskResult {
+	startIdx := left.start
+	endIdx := right.end - 1
 
 	for {
 		// scan for the swapping pairs
-		for startIdx < st.left.end && data.Less(startIdx, st.pivotPos) {
+		for startIdx < left.end && data.Less(startIdx, pivotPos) {
 			startIdx++
 		}
-		for endIdx >= st.right.start && data.Less(st.pivotPos, endIdx) {
+		for endIdx >= right.start && data.Less(pivotPos, endIdx) {
 			endIdx--
 		}
 
-		if startIdx == st.left.end || endIdx < st.right.start {
+		if startIdx == left.end || endIdx < right.start {
 			break
 		}
 		// perform swapping
 		data.Swap(startIdx, endIdx)
 	}
 
-	result := subtaskResult{
-		left:           st.left,
-		right:          st.right,
-		leftRemaining:  st.left.end - startIdx,
-		rightRemaining: endIdx - st.right.start + 1,
-	}
-	return result
+	leftRemaining = left.end - startIdx
+	rightRemaining = endIdx - right.start + 1
+
+	return leftRemaining, rightRemaining
 }
