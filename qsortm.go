@@ -23,30 +23,40 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 	defer wg.Done()
 
 	for t := range inputCh {
-		n := t.endPos - t.startPos
-		switch {
-		case n >= multiThreadThrehold && n > data.Len()/threadNum*2:
-			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
-			pivotPos := t.startPos
-			finalPivotPos := partitionMultiThread(data, t.startPos, t.endPos, pivotPos, subtaskCh)
 
-			// add the sub-tasks to the queue
-			remainingTaskNum.Add(2)
-			outputCh <- task{startPos: t.startPos, endPos: finalPivotPos}
-			outputCh <- task{startPos: finalPivotPos + 1, endPos: t.endPos}
-		case n > threshold:
-			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
-			pivotPos := t.startPos
-			finalPivotPos := partitionSingleThread(data, t.startPos, t.endPos, pivotPos)
+		for {
+			n := t.getN()
+			switch {
+			case n <= 1:
+				break
+			case n <= threshold:
+				// for small n between 2 to threshold, we switch to insertion sort / shell sort
+				// FIXME: use shell sort instead
+				insertionSort(data, t.startPos, t.endPos)
+				break
+			default:
+				var finalPivotPos int
+				// FIXME: choose a better pivot choosing algorithm instead of hardcoding
+				pivotPos := t.startPos
+				if n >= multiThreadThrehold && n > data.Len()/threadNum*2 {
+					finalPivotPos = partitionMultiThread(data, t.startPos, t.endPos, pivotPos, subtaskCh)
+				} else {
+					finalPivotPos = partitionSingleThread(data, t.startPos, t.endPos, pivotPos)
+				}
 
-			// add the sub-tasks to the queue
-			remainingTaskNum.Add(2)
-			outputCh <- task{startPos: t.startPos, endPos: finalPivotPos}
-			outputCh <- task{startPos: finalPivotPos + 1, endPos: t.endPos}
-		case n >= 2:
-			// for small n between 2 to threshold, we switch to insertion sort / shell sort
-			// FIXME: use shell sort instead
-			insertionSort(data, t.startPos, t.endPos)
+				// add the larger task to the queue, and then continue with smaller task
+				remainingTaskNum.Add(1)
+				taskLeft := task{startPos: t.startPos, endPos: finalPivotPos}
+				taskRight := task{startPos: finalPivotPos + 1, endPos: t.endPos}
+				if taskLeft.getN() > taskRight.getN() {
+					outputCh <- taskLeft
+					t = taskRight
+				} else {
+					outputCh <- taskRight
+					t = taskLeft
+				}
+			}
+
 		}
 
 		// mark the current task is done
