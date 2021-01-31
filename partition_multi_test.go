@@ -5,10 +5,6 @@ import (
 	//"log"
 )
 
-func getSampleInput() []int {
-	return []int{10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5}
-}
-
 func verifyIntArray(t *testing.T, expectedInput, actualInput []int) {
 	for i, v := range expectedInput {
 		if actualInput[i] != v {

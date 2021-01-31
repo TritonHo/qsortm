@@ -9,7 +9,17 @@ import (
 	"time"
 )
 
-func generateRandomSlice(n int) []int {
+type intSlice []int
+
+func (s intSlice) Len() int           { return len(s) }
+func (s intSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s intSlice) Less(i, j int) bool { return s[i] < s[j] }
+
+func getSampleInput() intSlice {
+	return []int{10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5}
+}
+
+func generateRandomSlice(n int) intSlice {
 	slice := make([]int, n, n)
 	for i := 0; i < n; i++ {
 		slice[i] = rand.Int()
@@ -17,7 +27,7 @@ func generateRandomSlice(n int) []int {
 	return slice
 }
 
-func isAscSorted(slice []int) bool {
+func isAscSorted(slice intSlice) bool {
 	for i := 1; i < len(slice); i++ {
 		if slice[i-1] > slice[i] {
 			return false
@@ -26,7 +36,7 @@ func isAscSorted(slice []int) bool {
 	return true
 }
 
-func sliceToCounters(slice []int) map[int]int {
+func sliceToCounters(slice intSlice) map[int]int {
 	counters := map[int]int{}
 	for _, item := range slice {
 		counters[item] = counters[item] + 1
@@ -34,7 +44,7 @@ func sliceToCounters(slice []int) map[int]int {
 	return counters
 }
 
-func verifySliceCounters(slice []int, counters map[int]int) bool {
+func verifySliceCounters(slice intSlice, counters map[int]int) bool {
 	for _, item := range slice {
 		counters[item] = counters[item] - 1
 	}
@@ -53,7 +63,7 @@ func TestSort(t *testing.T) {
 	startTime := time.Now()
 	Sort(array)
 
-	log.Println("TestQsortProdV2 elapsed time:", time.Since(startTime))
+	log.Println("TestSort elapsed time:", time.Since(startTime))
 	if isAscSorted(array) == false {
 		t.Error("the sorting is buggy, isAscSorted failed")
 	}
@@ -69,5 +79,5 @@ func BenchmarkQsortm(b *testing.B) {
 
 func BenchmarkStandard(b *testing.B) {
 	array := generateRandomSlice(1000000)
-	sort.Ints(array)
+	sort.Sort(array)
 }
