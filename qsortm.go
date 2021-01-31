@@ -6,7 +6,9 @@ import (
 	"sync"
 )
 
-func taskWorker(input []int, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
+type Interface sort.Interface
+
+func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
 	threadNum := runtime.NumCPU()
 
 	// the multithread version of partitioning will be applied only when n is large
@@ -23,10 +25,10 @@ func taskWorker(input []int, inputCh, outputCh chan task, subtaskCh chan subtask
 	for t := range inputCh {
 		n := t.endPos - t.startPos
 		switch {
-		case n >= multiThreadThrehold && n > len(input)/threadNum*2:
+		case n >= multiThreadThrehold && n > data.Len()/threadNum*2:
 			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
 			pivotPos := t.startPos
-			finalPivotPos := partitionMultiThread(input, t.startPos, t.endPos, pivotPos, subtaskCh)
+			finalPivotPos := partitionMultiThread(data, t.startPos, t.endPos, pivotPos, subtaskCh)
 
 			// add the sub-tasks to the queue
 			remainingTaskNum.Add(2)
@@ -35,7 +37,7 @@ func taskWorker(input []int, inputCh, outputCh chan task, subtaskCh chan subtask
 		case n > threshold:
 			// FIXME: choose a better pivot choosing algorithm instead of hardcoding
 			pivotPos := t.startPos
-			finalPivotPos := partitionSingleThread(input, t.startPos, t.endPos, pivotPos)
+			finalPivotPos := partitionSingleThread(data, t.startPos, t.endPos, pivotPos)
 
 			// add the sub-tasks to the queue
 			remainingTaskNum.Add(2)
@@ -43,7 +45,8 @@ func taskWorker(input []int, inputCh, outputCh chan task, subtaskCh chan subtask
 			outputCh <- task{startPos: finalPivotPos + 1, endPos: t.endPos}
 		case n >= 2:
 			// for small n between 2 to threshold, we switch back to standard library
-			sort.Ints(input[t.startPos:t.endPos])
+			// FIXME: handle it
+			// sort.Ints(input[t.startPos:t.endPos])
 		}
 
 		// mark the current task is done
@@ -51,7 +54,7 @@ func taskWorker(input []int, inputCh, outputCh chan task, subtaskCh chan subtask
 	}
 }
 
-func Sort(input []int) {
+func Sort(data Interface) {
 	taskWg := &sync.WaitGroup{}
 	subTaskWg := &sync.WaitGroup{}
 	remainingTaskNum := &sync.WaitGroup{}
@@ -68,8 +71,8 @@ func Sort(input []int) {
 	taskWg.Add(threadNum)
 	subTaskWg.Add(threadNum)
 	for i := 0; i < threadNum; i++ {
-		go taskWorker(input, ch1, ch2, subtaskCh, taskWg, remainingTaskNum)
-		go subTaskWorker(input, subtaskCh, subTaskWg)
+		go taskWorker(data, ch1, ch2, subtaskCh, taskWg, remainingTaskNum)
+		go subTaskWorker(data, subtaskCh, subTaskWg)
 	}
 
 	// init the invertor
@@ -77,7 +80,7 @@ func Sort(input []int) {
 
 	// add the input to channel
 	remainingTaskNum.Add(1)
-	ch1 <- task{startPos: 0, endPos: len(input)}
+	ch1 <- task{startPos: 0, endPos: data.Len()}
 	// wait for all task done
 	remainingTaskNum.Wait()
 
