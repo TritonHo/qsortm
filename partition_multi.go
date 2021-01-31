@@ -44,23 +44,60 @@ func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int, batchSize in
 	return r
 }
 
-/*
-func handleFragments(unLefts, unRights []sliceRange, unprocessedLeftIdx, unprocessedRightIdx int ) (middleLeft, middleRight int) {
+type byLeft []sliceRange
 
-	// step 1: find out the leftest left-block, and rightest right-block, and do the swapping
-	for len(unLefts) > 0 && len(unRights) > 0 {
+func (a byLeft) Len() int           { return len(a) }
+func (a byLeft) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byLeft) Less(i, j int) bool { return a[i].start < a[j].start }
 
-		//
+type byRight []sliceRange
 
-	}
+func (a byRight) Len() int           { return len(a) }
+func (a byRight) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byRight) Less(i, j int) bool { return a[i].end > a[j].end }
 
-
-
-
-
-
+func (sr *sliceRange) getNewLeft(leftRemaining int) sliceRange {
+	return sliceRange{start: sr.end - leftRemaining, end: sr.end}
 }
-*/
+func (sr *sliceRange) getNewRight(rightRemaining int) sliceRange {
+	return sliceRange{start: sr.start, end: sr.start + rightRemaining}
+}
+
+func handleFragments(data Interface, unLefts, unRights []sliceRange, unprocessedLeftIdx, unprocessedRightIdx, pivotPos int) (middleLeft, middleRight int) {
+	// step 1: sort the left and right, by position
+	insertionSort(byLeft(unLefts), 0, len(unLefts))
+	insertionSort(byRight(unRights), 0, len(unRights))
+
+	// step 2: find out the leftest left-block, and rightest right-block, and do the swapping
+	for len(unLefts) > 0 && len(unRights) > 0 {
+		leftRemaining, rightRemaining := swappingOnBlock(data, unLefts[0], unRights[0], pivotPos)
+
+		newLeft := unLefts[0].getNewLeft(leftRemaining)
+		newRight := unRights[0].getNewRight(rightRemaining)
+		if newLeft.start == newLeft.end {
+			unLefts = unLefts[1:]
+		} else {
+			unLefts[0] = newLeft
+		}
+		if newRight.start == newRight.end {
+			unRights = unRights[1:]
+		} else {
+			unRights[0] = newRight
+		}
+	}
+	/*
+		unMiddle := {start: unprocessedLeftIdx, end: unprocessedRightIdx}
+		if len(unLefts) > 0 {
+			leftRemaining, rightRemaining := swappingOnBlock(data, unLefts[0], unMiddle, pivotPos)
+
+			newLeft := sliceRange{start: unLefts[0].end - leftRemaining, end: unLefts[0].end}
+			newRight := sliceRange{start: unRights[0].start, end: unRights[0].start + rightRemaining}
+
+		}
+	*/
+	// FIXME: implement it
+	return 0, 0
+}
 
 func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
@@ -104,8 +141,8 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 
 		stResult := <-callbackCh
 
-		unLeft := sliceRange{start: stResult.left.end - stResult.leftRemaining, end: stResult.left.end}
-		unRight := sliceRange{start: stResult.right.start, end: stResult.right.start + stResult.rightRemaining}
+		unLeft := stResult.left.getNewLeft(stResult.leftRemaining)
+		unRight := stResult.right.getNewRight(stResult.rightRemaining)
 
 		// the left has unfinished portion
 		if unLeft.start != unLeft.end {
