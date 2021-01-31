@@ -23,17 +23,17 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 	defer wg.Done()
 
 	for t := range inputCh {
-
-		for {
+		isInnerLoopEnd := false
+		for isInnerLoopEnd == false {
 			n := t.getN()
 			switch {
 			case n <= 1:
-				break
+				isInnerLoopEnd = true
 			case n <= threshold:
 				// for small n between 2 to threshold, we switch to insertion sort / shell sort
 				// FIXME: use shell sort instead
 				insertionSort(data, t.startPos, t.endPos)
-				break
+				isInnerLoopEnd = true
 			default:
 				var finalPivotPos int
 				// FIXME: choose a better pivot choosing algorithm instead of hardcoding
