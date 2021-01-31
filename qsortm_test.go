@@ -63,7 +63,7 @@ func TestSort(t *testing.T) {
 	startTime := time.Now()
 	Sort(array)
 
-	log.Println("TestQsortProdV2 elapsed time:", time.Since(startTime))
+	log.Println("TestSort elapsed time:", time.Since(startTime))
 	if isAscSorted(array) == false {
 		t.Error("the sorting is buggy, isAscSorted failed")
 	}
@@ -79,5 +79,5 @@ func BenchmarkQsortm(b *testing.B) {
 
 func BenchmarkStandard(b *testing.B) {
 	array := generateRandomSlice(1000000)
-	sort.Ints(array)
+	sort.Sort(array)
 }
