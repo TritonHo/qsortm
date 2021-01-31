@@ -44,9 +44,9 @@ func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int, batchSize in
 	return r
 }
 
-func partitionMultiThread(input []int, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
+func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
-	input[startPos], input[pivotPos] = input[pivotPos], input[startPos]
+	data.Swap(startPos, pivotPos)
 	pivotPos = startPos
 
 	threadNum := runtime.NumCPU()
@@ -166,36 +166,34 @@ func partitionMultiThread(input []int, startPos, endPos, pivotPos int, subtaskCh
 
 	// now we knows the middle portion that need partitioning
 	// relocate the pivot to middleStart - 1
-	input[pivotPos], input[middleStart-1] = input[middleStart-1], input[pivotPos]
+	data.Swap(pivotPos, middleStart-1)
 	pivotPos = middleStart - 1
 
 	// run the simple single thread qsort partitioning
-	finalPivotPos = partitionSingleThread(input, middleStart-1, middleEnd, pivotPos)
+	finalPivotPos = partitionSingleThread(data, middleStart-1, middleEnd, pivotPos)
 
 	return finalPivotPos
 }
 
-func subTaskWorker(input []int, subtaskCh chan subtask, subTaskWg *sync.WaitGroup) {
+func subTaskWorker(data Interface, subtaskCh chan subtask, subTaskWg *sync.WaitGroup) {
 	defer subTaskWg.Done()
 
 	for st := range subtaskCh {
-		result := swappingOnBlock(input, st)
+		result := swappingOnBlock(data, st)
 		st.callbackCh <- result
 	}
 }
 
-func swappingOnBlock(input []int, st subtask) subtaskResult {
-	pivot := input[st.pivotPos]
-
+func swappingOnBlock(data Interface, st subtask) subtaskResult {
 	startIdx := st.left.start
 	endIdx := st.right.end - 1
 
 	for {
 		// scan for the swapping pairs
-		for startIdx < st.left.end && input[startIdx] <= pivot {
+		for startIdx < st.left.end && data.Less(startIdx, st.pivotPos) {
 			startIdx++
 		}
-		for endIdx >= st.right.start && input[endIdx] > pivot {
+		for endIdx >= st.right.start && data.Less(st.pivotPos, endIdx) {
 			endIdx--
 		}
 
@@ -203,7 +201,7 @@ func swappingOnBlock(input []int, st subtask) subtaskResult {
 			break
 		}
 		// perform swapping
-		input[startIdx], input[endIdx] = input[endIdx], input[startIdx]
+		data.Swap(startIdx, endIdx)
 	}
 
 	result := subtaskResult{
