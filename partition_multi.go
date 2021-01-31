@@ -44,6 +44,74 @@ func getNewRightRange(unprocessedLeftIdx, unprocessedRightIdx *int, batchSize in
 	return r
 }
 
+type byLeft []sliceRange
+
+func (a byLeft) Len() int           { return len(a) }
+func (a byLeft) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byLeft) Less(i, j int) bool { return a[i].start < a[j].start }
+
+type byRight []sliceRange
+
+func (a byRight) Len() int           { return len(a) }
+func (a byRight) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byRight) Less(i, j int) bool { return a[i].end > a[j].end }
+
+func (sr *sliceRange) getNewLeft(leftRemaining int) sliceRange {
+	return sliceRange{start: sr.end - leftRemaining, end: sr.end}
+}
+func (sr *sliceRange) getNewRight(rightRemaining int) sliceRange {
+	return sliceRange{start: sr.start, end: sr.start + rightRemaining}
+}
+
+func handleFragments(data Interface, unLefts, unRights []sliceRange, unprocessedLeftIdx, unprocessedRightIdx, pivotPos int) (middleLeft, middleRight int) {
+	// step 1: sort the left and right, by position
+	insertionSort(byLeft(unLefts), 0, len(unLefts))
+	insertionSort(byRight(unRights), 0, len(unRights))
+
+	// step 2: do the swapping, until one side exhausted
+	isMiddleUsed := false
+	unMiddle := sliceRange{start: unprocessedLeftIdx, end: unprocessedRightIdx}
+	for len(unLefts) > 0 && len(unRights) > 0 {
+		leftRemaining, rightRemaining := swappingOnBlock(data, unLefts[0], unRights[0], pivotPos)
+
+		unLefts[0] = unLefts[0].getNewLeft(leftRemaining)
+		unRights[0] = unRights[0].getNewRight(rightRemaining)
+		if unLefts[0].start == unLefts[0].end {
+			unLefts = unLefts[1:]
+		}
+		if unRights[0].start == unRights[0].end {
+			unRights = unRights[1:]
+		}
+
+		// if one side exhaused, add the middle and continue
+		if len(unLefts) == 0 && isMiddleUsed == false {
+			isMiddleUsed = true
+			unLefts = append(unLefts, unMiddle)
+			unprocessedLeftIdx = unprocessedRightIdx
+		}
+		if len(unRights) == 0 && isMiddleUsed == false {
+			isMiddleUsed = true
+			unRights = append(unRights, unMiddle)
+			unprocessedRightIdx = unprocessedLeftIdx
+		}
+	}
+
+	// find out the "middle" portion that need to perform qsort partition once again
+	middleStart, middleEnd := unprocessedLeftIdx, unprocessedRightIdx
+	for _, unLeft := range unLefts {
+		if unLeft.start < middleStart {
+			middleStart = unLeft.start
+		}
+	}
+	for _, unRight := range unRights {
+		if unRight.end > middleEnd {
+			middleEnd = unRight.end
+		}
+	}
+
+	return middleStart, middleEnd
+}
+
 func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
 	data.Swap(startPos, pivotPos)
@@ -55,8 +123,8 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 	callbackCh := make(chan subtaskResult, threadNum)
 	outstandingSubTaskCount := threadNum
 
-	// create initial subtasks, which has 10% of the n
-	initBatchSize := (endPos - startPos) / 10 / (2 * threadNum)
+	// create initial subtasks, which has 25% of the n
+	initBatchSize := (endPos - startPos) / 4 / (2 * threadNum)
 	for i := 0; i < threadNum; i++ {
 		st := subtask{
 			left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, initBatchSize),
@@ -70,23 +138,24 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 	unfinishedLefts := []sliceRange{}
 	unfinishedRights := []sliceRange{}
 
-	// FIXME: it should be a value that begin with large number
+	// it should be a value that begin with large number
 	// and then slowly decreased to small number
 	const subTaskMinBatchSize = 100
+	reservedUnprocessed := subTaskMinBatchSize * threadNum
 	for {
 		if outstandingSubTaskCount == 0 {
 			break
 		}
 		// FIXME: determine better batchSize
-		batchSize := (unprocessedRightIdx - unprocessedLeftIdx) / (4 * threadNum)
+		batchSize := (unprocessedRightIdx - unprocessedLeftIdx) / (2 * threadNum)
 		if batchSize < subTaskMinBatchSize {
 			batchSize = subTaskMinBatchSize
 		}
 
 		stResult := <-callbackCh
 
-		unLeft := sliceRange{start: stResult.left.end - stResult.leftRemaining, end: stResult.left.end}
-		unRight := sliceRange{start: stResult.right.start, end: stResult.right.start + stResult.rightRemaining}
+		unLeft := stResult.left.getNewLeft(stResult.leftRemaining)
+		unRight := stResult.right.getNewRight(stResult.rightRemaining)
 
 		// the left has unfinished portion
 		if unLeft.start != unLeft.end {
@@ -96,16 +165,11 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 				callbackCh: callbackCh,
 			}
 
-			switch {
-			case unprocessedLeftIdx < unprocessedRightIdx:
+			if unprocessedRightIdx-unprocessedLeftIdx > reservedUnprocessed {
 				nextSubTask.right = getNewRightRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize)
 				subtaskCh <- nextSubTask
-			case len(unfinishedRights) > 0:
-				nextSubTask.right = unfinishedRights[0]
-				unfinishedRights = unfinishedRights[1:]
-				subtaskCh <- nextSubTask
-			default:
-				// no further right tasks
+			} else {
+				// stop further processing and remember the unprocessed prositions
 				unfinishedLefts = append(unfinishedLefts, unLeft)
 				outstandingSubTaskCount--
 			}
@@ -119,25 +183,19 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 				callbackCh: callbackCh,
 			}
 
-			switch {
-			case unprocessedLeftIdx < unprocessedRightIdx:
+			if unprocessedRightIdx-unprocessedLeftIdx > reservedUnprocessed {
 				nextSubTask.left = getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize)
 				subtaskCh <- nextSubTask
-			case len(unfinishedLefts) > 0:
-				nextSubTask.left = unfinishedLefts[0]
-				unfinishedLefts = unfinishedLefts[1:]
-				subtaskCh <- nextSubTask
-			default:
-				// no further left tasks
+			} else {
+				// stop further processing and remember the unprocessed prositions
 				unfinishedRights = append(unfinishedRights, unRight)
 				outstandingSubTaskCount--
 			}
-
 			continue
 		}
 
 		// when the it reach this line, the previous subtask is a perfect match and left nothing unfinished
-		if unprocessedLeftIdx < unprocessedRightIdx {
+		if unprocessedRightIdx-unprocessedLeftIdx > reservedUnprocessed {
 			// generate a new subtask
 			st := subtask{
 				left:       getNewLeftRange(&unprocessedLeftIdx, &unprocessedRightIdx, batchSize),
@@ -151,18 +209,9 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 		}
 	}
 
-	// find out the "middle" portion that need to perform qsort partition once again
-	middleStart, middleEnd := unprocessedLeftIdx, unprocessedRightIdx
-	for _, unLeft := range unfinishedLefts {
-		if unLeft.start < middleStart {
-			middleStart = unLeft.start
-		}
-	}
-	for _, unRight := range unfinishedRights {
-		if unRight.end > middleEnd {
-			middleEnd = unRight.end
-		}
-	}
+	// complete the unprocessed fragments in previous steps
+	// also, find out the "middle" portion that need to perform qsort partition once again
+	middleStart, middleEnd := handleFragments(data, unfinishedLefts, unfinishedRights, unprocessedLeftIdx, unprocessedRightIdx, pivotPos)
 
 	// now we knows the middle portion that need partitioning
 	// relocate the pivot to middleStart - 1
@@ -179,36 +228,41 @@ func subTaskWorker(data Interface, subtaskCh chan subtask, subTaskWg *sync.WaitG
 	defer subTaskWg.Done()
 
 	for st := range subtaskCh {
-		result := swappingOnBlock(data, st)
+		result := subtaskResult{
+			left:  st.left,
+			right: st.right,
+		}
+
+		result.leftRemaining, result.rightRemaining = swappingOnBlock(data, st.left, st.right, st.pivotPos)
+
 		st.callbackCh <- result
 	}
 }
 
-func swappingOnBlock(data Interface, st subtask) subtaskResult {
-	startIdx := st.left.start
-	endIdx := st.right.end - 1
+func swappingOnBlock(data Interface, left, right sliceRange, pivotPos int) (leftRemaining, rightRemaining int) {
+
+	//st subtask) subtaskResult {
+	startIdx := left.start
+	endIdx := right.end - 1
 
 	for {
 		// scan for the swapping pairs
-		for startIdx < st.left.end && data.Less(startIdx, st.pivotPos) {
+		for startIdx < left.end && data.Less(startIdx, pivotPos) {
 			startIdx++
 		}
-		for endIdx >= st.right.start && data.Less(st.pivotPos, endIdx) {
+		for endIdx >= right.start && data.Less(pivotPos, endIdx) {
 			endIdx--
 		}
 
-		if startIdx == st.left.end || endIdx < st.right.start {
+		if startIdx == left.end || endIdx < right.start {
 			break
 		}
 		// perform swapping
 		data.Swap(startIdx, endIdx)
 	}
 
-	result := subtaskResult{
-		left:           st.left,
-		right:          st.right,
-		leftRemaining:  st.left.end - startIdx,
-		rightRemaining: endIdx - st.right.start + 1,
-	}
-	return result
+	leftRemaining = left.end - startIdx
+	rightRemaining = endIdx - right.start + 1
+
+	return leftRemaining, rightRemaining
 }

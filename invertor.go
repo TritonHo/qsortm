@@ -4,6 +4,10 @@ type task struct {
 	startPos, endPos int
 }
 
+func (t *task) getN() int {
+	return t.endPos - t.startPos
+}
+
 func channelInverter(inputCh, outputCh chan task) {
 	taskBuffer := []task{}
 	for {
