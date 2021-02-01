@@ -247,7 +247,7 @@ func swappingOnBlock(data Interface, left, right sliceRange, pivotPos int) (left
 
 	for {
 		// scan for the swapping pairs
-		for startIdx < left.end && data.Less(startIdx, pivotPos) {
+		for startIdx < left.end && data.Less(pivotPos, startIdx) == false {
 			startIdx++
 		}
 		for endIdx >= right.start && data.Less(pivotPos, endIdx) {
@@ -259,6 +259,8 @@ func swappingOnBlock(data Interface, left, right sliceRange, pivotPos int) (left
 		}
 		// perform swapping
 		data.Swap(startIdx, endIdx)
+		startIdx++
+		endIdx--
 	}
 
 	leftRemaining = left.end - startIdx

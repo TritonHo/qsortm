@@ -11,7 +11,7 @@ func partitionSingleThread(data Interface, startPos, endPos, pivotPos int) (fina
 
 	for {
 		// scan for the swapping pairs
-		for startIdx <= endIdx && data.Less(startIdx, pivotPos) {
+		for startIdx <= endIdx && data.Less(pivotPos, startIdx) == false {
 			startIdx++
 		}
 		for startIdx <= endIdx && data.Less(pivotPos, endIdx) {
@@ -23,6 +23,8 @@ func partitionSingleThread(data Interface, startPos, endPos, pivotPos int) (fina
 		}
 		// perform swapping
 		data.Swap(startIdx, endIdx)
+		startIdx++
+		endIdx--
 	}
 
 	// put back the pivot into correct position
