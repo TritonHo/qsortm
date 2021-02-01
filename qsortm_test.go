@@ -72,12 +72,39 @@ func TestSort(t *testing.T) {
 	}
 }
 
-func BenchmarkQsortm(b *testing.B) {
+func TestSlice(t *testing.T) {
+	array := generateRandomSlice(1000000)
+	counters := sliceToCounters(array)
+
+	startTime := time.Now()
+	lessFn := func(i, j int) bool { return array[i] < array[j] }
+	Slice(array, lessFn)
+
+	log.Println("TestSlice elapsed time:", time.Since(startTime))
+	if isAscSorted(array) == false {
+		t.Error("the sorting is buggy, isAscSorted failed")
+	}
+	if verifySliceCounters(array, counters) == false {
+		t.Error("the sorting is buggy, verifySliceCounters failed")
+	}
+}
+
+func BenchmarkQsortmSort(b *testing.B) {
 	array := generateRandomSlice(1000000)
 	Sort(array)
 }
+func BenchmarkQsortmSlice(b *testing.B) {
+	array := generateRandomSlice(1000000)
+	lessFn := func(i, j int) bool { return array[i] < array[j] }
+	Slice(array, lessFn)
+}
 
-func BenchmarkStandard(b *testing.B) {
+func BenchmarkStandardSort(b *testing.B) {
 	array := generateRandomSlice(1000000)
 	sort.Sort(array)
+}
+func BenchmarkStandardSlice(b *testing.B) {
+	array := generateRandomSlice(1000000)
+	lessFn := func(i, j int) bool { return array[i] < array[j] }
+	sort.Slice(array, lessFn)
 }
