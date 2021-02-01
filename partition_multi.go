@@ -2,6 +2,7 @@ package qsortm
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 )
 
@@ -65,8 +66,8 @@ func (sr *sliceRange) getNewRight(rightRemaining int) sliceRange {
 
 func handleFragments(data Interface, unLefts, unRights []sliceRange, unprocessedLeftIdx, unprocessedRightIdx, pivotPos int) (middleLeft, middleRight int) {
 	// step 1: sort the left and right, by position
-	insertionSort(byLeft(unLefts), 0, len(unLefts))
-	insertionSort(byRight(unRights), 0, len(unRights))
+	sort.Sort(byLeft(unLefts))
+	sort.Sort(byRight(unRights))
 
 	// step 2: do the swapping, until one side exhausted
 	isMiddleUsed := false

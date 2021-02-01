@@ -8,6 +8,22 @@ import (
 
 type Interface sort.Interface
 
+// it allow passing part of slice to the standard lib
+type warpper struct {
+	data             Interface
+	startPos, endPos int
+}
+
+func (w warpper) Len() int {
+	return w.endPos - w.startPos
+}
+func (w warpper) Swap(i, j int) {
+	w.data.Swap(i+w.startPos, j+w.startPos)
+}
+func (w warpper) Less(i, j int) bool {
+	return w.data.Less(i+w.startPos, j+w.startPos)
+}
+
 func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
 	threadNum := runtime.NumCPU()
 
@@ -18,7 +34,7 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 
 	// if the size of the task is below threshold, it will use the insertion sort for sorting
 	// too small threshold will cause unnecessary data exchange between threads and degrade performance
-	const threshold = 100
+	const threshold = 10000
 
 	defer wg.Done()
 
@@ -30,9 +46,9 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 			case n <= 1:
 				isInnerLoopEnd = true
 			case n <= threshold:
-				// for small n between 2 to threshold, we switch to insertion sort / shell sort
-				// FIXME: use shell sort instead
-				insertionSort(data, t.startPos, t.endPos)
+				// for small n between 2 to threshold, we switch to standard lib
+				w := warpper{data: data, startPos: t.startPos, endPos: t.endPos}
+				sort.Sort(w)
 				isInnerLoopEnd = true
 			default:
 				var finalPivotPos int
