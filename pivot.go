@@ -1,15 +1,15 @@
 package qsortm
 
-func medianOfThree(data Interface, posA, posB, posC int) int {
-	ab := data.Less(posA, posB)
-	bc := data.Less(posB, posC)
+func medianOfThree(data lessSwap, posA, posB, posC int) int {
+	ab := data.less(posA, posB)
+	bc := data.less(posB, posC)
 
 	// (a < b < c) or (c < b < a)
 	if (ab && bc) || (ab == false && bc == false) {
 		return posB
 	}
 
-	ac := data.Less(posA, posC)
+	ac := data.less(posA, posC)
 	// (b < a < c) or (c < a < b)
 	if (ab == false && ac) || (ac == false && ab) {
 		return posA
@@ -18,7 +18,7 @@ func medianOfThree(data Interface, posA, posB, posC int) int {
 	return posC
 }
 
-func getPivotPos(data Interface, startPos, endPos int) int {
+func getPivotPos(data lessSwap, startPos, endPos int) int {
 
 	m := (endPos + startPos) / 2
 	if endPos-startPos <= 40 {

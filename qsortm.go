@@ -10,21 +10,21 @@ type Interface sort.Interface
 
 // it allow passing part of slice to the standard lib
 type warpper struct {
-	data             Interface
-	startPos, endPos int
+	data             lessSwap
+	startPos, length int
 }
 
 func (w warpper) Len() int {
-	return w.endPos - w.startPos
+	return w.length
 }
 func (w warpper) Swap(i, j int) {
-	w.data.Swap(i+w.startPos, j+w.startPos)
+	w.data.swap(i+w.startPos, j+w.startPos)
 }
 func (w warpper) Less(i, j int) bool {
-	return w.data.Less(i+w.startPos, j+w.startPos)
+	return w.data.less(i+w.startPos, j+w.startPos)
 }
 
-func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
+func taskWorker(data lessSwap, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
 	threadNum := runtime.NumCPU()
 
 	// the multithread version of partitioning will be applied only when n is large
@@ -47,13 +47,13 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 				isInnerLoopEnd = true
 			case n <= threshold:
 				// for small n between 2 to threshold, we switch to standard lib
-				w := warpper{data: data, startPos: t.startPos, endPos: t.endPos}
+				w := warpper{data: data, startPos: t.startPos, length: t.endPos - t.startPos}
 				sort.Sort(w)
 				isInnerLoopEnd = true
 			default:
 				var finalPivotPos int
 				pivotPos := getPivotPos(data, t.startPos, t.endPos)
-				if n >= multiThreadThrehold && n > data.Len()/threadNum*2 {
+				if n >= multiThreadThrehold && n > data.length/threadNum*2 {
 					finalPivotPos = partitionMultiThread(data, t.startPos, t.endPos, pivotPos, subtaskCh)
 				} else {
 					finalPivotPos = partitionSingleThread(data, t.startPos, t.endPos, pivotPos)
@@ -79,7 +79,7 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 	}
 }
 
-func Sort(data Interface) {
+func quicksort(data lessSwap) {
 	taskWg := &sync.WaitGroup{}
 	subTaskWg := &sync.WaitGroup{}
 	remainingTaskNum := &sync.WaitGroup{}
@@ -105,7 +105,7 @@ func Sort(data Interface) {
 
 	// add the input to channel
 	remainingTaskNum.Add(1)
-	ch1 <- task{startPos: 0, endPos: data.Len()}
+	ch1 <- task{startPos: 0, endPos: data.length}
 	// wait for all task done
 	remainingTaskNum.Wait()
 
