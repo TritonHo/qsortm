@@ -147,7 +147,7 @@ func partitionMultiThread(data lessSwap, startPos, endPos, pivotPos int, subtask
 		if outstandingSubTaskCount == 0 {
 			break
 		}
-		// FIXME: determine better batchSize
+		// the batchSize should be slowly decreasing
 		batchSize := (unprocessedRightIdx - unprocessedLeftIdx) / (2 * threadNum)
 		if batchSize < subTaskMinBatchSize {
 			batchSize = subTaskMinBatchSize
