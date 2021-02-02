@@ -1,9 +1,9 @@
 package qsortm
 
 // perform single thread partitioning
-func partitionSingleThread(data Interface, startPos, endPos, pivotPos int) (finalPivotPos int) {
+func partitionSingleThread(data lessSwap, startPos, endPos, pivotPos int) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
-	data.Swap(startPos, pivotPos)
+	data.swap(startPos, pivotPos)
 	pivotPos = startPos
 
 	startIdx := startPos + 1
@@ -11,10 +11,10 @@ func partitionSingleThread(data Interface, startPos, endPos, pivotPos int) (fina
 
 	for {
 		// scan for the swapping pairs
-		for startIdx <= endIdx && data.Less(pivotPos, startIdx) == false {
+		for startIdx <= endIdx && data.less(pivotPos, startIdx) == false {
 			startIdx++
 		}
-		for startIdx <= endIdx && data.Less(pivotPos, endIdx) {
+		for startIdx <= endIdx && data.less(pivotPos, endIdx) {
 			endIdx--
 		}
 
@@ -22,14 +22,14 @@ func partitionSingleThread(data Interface, startPos, endPos, pivotPos int) (fina
 			break
 		}
 		// perform swapping
-		data.Swap(startIdx, endIdx)
+		data.swap(startIdx, endIdx)
 		startIdx++
 		endIdx--
 	}
 
 	// put back the pivot into correct position
 	finalPivotPos = startIdx - 1
-	data.Swap(startPos, finalPivotPos)
+	data.swap(startPos, finalPivotPos)
 
 	return finalPivotPos
 }
