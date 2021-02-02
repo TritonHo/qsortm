@@ -116,3 +116,12 @@ func quicksort(data lessSwap) {
 	taskWg.Wait()
 	subTaskWg.Wait()
 }
+
+func Sort(data Interface) {
+	temp := lessSwap{
+		length: data.Len(),
+		swap:   data.Swap,
+		less:   data.Less,
+	}
+	quicksort(temp)
+}

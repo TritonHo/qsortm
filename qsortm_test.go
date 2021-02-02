@@ -15,10 +15,6 @@ func (s intSlice) Len() int           { return len(s) }
 func (s intSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s intSlice) Less(i, j int) bool { return s[i] < s[j] }
 
-func getSampleInput() intSlice {
-	return []int{10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5}
-}
-
 func generateRandomSlice(n int) intSlice {
 	slice := make([]int, n, n)
 	for i := 0; i < n; i++ {
