@@ -2,6 +2,7 @@ package qsortm
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 )
 
@@ -63,10 +64,10 @@ func (sr *sliceRange) getNewRight(rightRemaining int) sliceRange {
 	return sliceRange{start: sr.start, end: sr.start + rightRemaining}
 }
 
-func handleFragments(data Interface, unLefts, unRights []sliceRange, unprocessedLeftIdx, unprocessedRightIdx, pivotPos int) (middleLeft, middleRight int) {
+func handleFragments(data lessSwap, unLefts, unRights []sliceRange, unprocessedLeftIdx, unprocessedRightIdx, pivotPos int) (middleLeft, middleRight int) {
 	// step 1: sort the left and right, by position
-	insertionSort(byLeft(unLefts), 0, len(unLefts))
-	insertionSort(byRight(unRights), 0, len(unRights))
+	sort.Sort(byLeft(unLefts))
+	sort.Sort(byRight(unRights))
 
 	// step 2: do the swapping, until one side exhausted
 	isMiddleUsed := false
@@ -112,9 +113,9 @@ func handleFragments(data Interface, unLefts, unRights []sliceRange, unprocessed
 	return middleStart, middleEnd
 }
 
-func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
+func partitionMultiThread(data lessSwap, startPos, endPos, pivotPos int, subtaskCh chan subtask) (finalPivotPos int) {
 	// swap the startPos with pivotPos first
-	data.Swap(startPos, pivotPos)
+	data.swap(startPos, pivotPos)
 	pivotPos = startPos
 
 	threadNum := runtime.NumCPU()
@@ -146,7 +147,7 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 		if outstandingSubTaskCount == 0 {
 			break
 		}
-		// FIXME: determine better batchSize
+		// the batchSize should be slowly decreasing
 		batchSize := (unprocessedRightIdx - unprocessedLeftIdx) / (2 * threadNum)
 		if batchSize < subTaskMinBatchSize {
 			batchSize = subTaskMinBatchSize
@@ -215,7 +216,7 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 
 	// now we knows the middle portion that need partitioning
 	// relocate the pivot to middleStart - 1
-	data.Swap(pivotPos, middleStart-1)
+	data.swap(pivotPos, middleStart-1)
 	pivotPos = middleStart - 1
 
 	// run the simple single thread qsort partitioning
@@ -224,7 +225,7 @@ func partitionMultiThread(data Interface, startPos, endPos, pivotPos int, subtas
 	return finalPivotPos
 }
 
-func subTaskWorker(data Interface, subtaskCh chan subtask, subTaskWg *sync.WaitGroup) {
+func subTaskWorker(data lessSwap, subtaskCh chan subtask, subTaskWg *sync.WaitGroup) {
 	defer subTaskWg.Done()
 
 	for st := range subtaskCh {
@@ -239,7 +240,7 @@ func subTaskWorker(data Interface, subtaskCh chan subtask, subTaskWg *sync.WaitG
 	}
 }
 
-func swappingOnBlock(data Interface, left, right sliceRange, pivotPos int) (leftRemaining, rightRemaining int) {
+func swappingOnBlock(data lessSwap, left, right sliceRange, pivotPos int) (leftRemaining, rightRemaining int) {
 
 	//st subtask) subtaskResult {
 	startIdx := left.start
@@ -247,10 +248,10 @@ func swappingOnBlock(data Interface, left, right sliceRange, pivotPos int) (left
 
 	for {
 		// scan for the swapping pairs
-		for startIdx < left.end && data.Less(pivotPos, startIdx) == false {
+		for startIdx < left.end && data.less(pivotPos, startIdx) == false {
 			startIdx++
 		}
-		for endIdx >= right.start && data.Less(pivotPos, endIdx) {
+		for endIdx >= right.start && data.less(pivotPos, endIdx) {
 			endIdx--
 		}
 
@@ -258,7 +259,7 @@ func swappingOnBlock(data Interface, left, right sliceRange, pivotPos int) (left
 			break
 		}
 		// perform swapping
-		data.Swap(startIdx, endIdx)
+		data.swap(startIdx, endIdx)
 		startIdx++
 		endIdx--
 	}

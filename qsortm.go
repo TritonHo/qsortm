@@ -8,7 +8,23 @@ import (
 
 type Interface sort.Interface
 
-func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
+// it allow passing part of slice to the standard lib
+type warpper struct {
+	data             lessSwap
+	startPos, length int
+}
+
+func (w warpper) Len() int {
+	return w.length
+}
+func (w warpper) Swap(i, j int) {
+	w.data.swap(i+w.startPos, j+w.startPos)
+}
+func (w warpper) Less(i, j int) bool {
+	return w.data.less(i+w.startPos, j+w.startPos)
+}
+
+func taskWorker(data lessSwap, inputCh, outputCh chan task, subtaskCh chan subtask, wg, remainingTaskNum *sync.WaitGroup) {
 	threadNum := runtime.NumCPU()
 
 	// the multithread version of partitioning will be applied only when n is large
@@ -18,7 +34,7 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 
 	// if the size of the task is below threshold, it will use the insertion sort for sorting
 	// too small threshold will cause unnecessary data exchange between threads and degrade performance
-	const threshold = 100
+	const threshold = 10000
 
 	defer wg.Done()
 
@@ -30,14 +46,14 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 			case n <= 1:
 				isInnerLoopEnd = true
 			case n <= threshold:
-				// for small n between 2 to threshold, we switch to insertion sort / shell sort
-				// FIXME: use shell sort instead
-				insertionSort(data, t.startPos, t.endPos)
+				// for small n between 2 to threshold, we switch to standard lib
+				w := warpper{data: data, startPos: t.startPos, length: t.endPos - t.startPos}
+				sort.Sort(w)
 				isInnerLoopEnd = true
 			default:
 				var finalPivotPos int
 				pivotPos := getPivotPos(data, t.startPos, t.endPos)
-				if n >= multiThreadThrehold && n > data.Len()/threadNum*2 {
+				if n >= multiThreadThrehold && n > data.length/threadNum*2 {
 					finalPivotPos = partitionMultiThread(data, t.startPos, t.endPos, pivotPos, subtaskCh)
 				} else {
 					finalPivotPos = partitionSingleThread(data, t.startPos, t.endPos, pivotPos)
@@ -63,7 +79,7 @@ func taskWorker(data Interface, inputCh, outputCh chan task, subtaskCh chan subt
 	}
 }
 
-func Sort(data Interface) {
+func quicksort(data lessSwap) {
 	taskWg := &sync.WaitGroup{}
 	subTaskWg := &sync.WaitGroup{}
 	remainingTaskNum := &sync.WaitGroup{}
@@ -89,7 +105,7 @@ func Sort(data Interface) {
 
 	// add the input to channel
 	remainingTaskNum.Add(1)
-	ch1 <- task{startPos: 0, endPos: data.Len()}
+	ch1 <- task{startPos: 0, endPos: data.length}
 	// wait for all task done
 	remainingTaskNum.Wait()
 
@@ -99,4 +115,13 @@ func Sort(data Interface) {
 	close(subtaskCh)
 	taskWg.Wait()
 	subTaskWg.Wait()
+}
+
+func Sort(data Interface) {
+	temp := lessSwap{
+		length: data.Len(),
+		swap:   data.Swap,
+		less:   data.Less,
+	}
+	quicksort(temp)
 }
