@@ -1,5 +1,5 @@
 
-qsortm = qsort with multithreading
+qsortm = qsort with full Multithreading
 
 A 100% compatible drop-in replacement of Sort() and Slice() in "sort"
 
@@ -37,3 +37,10 @@ import "github.com/TritonHo/qsortm"
 qsortm.Sort(slice)
 qsortm.Slice(slice, lessFn)
 ```
+
+# TODO
+
+ - Performance improvement on Sort()
+ - Add Support for Ints(), Float64s()
+ - Add CI and more testcase
+ - Add heapsort implementation to handle edge cases
