@@ -86,21 +86,42 @@ func TestSlice(t *testing.T) {
 }
 
 func BenchmarkQsortmSort(b *testing.B) {
-	array := generateRandomSlice(1000000)
-	Sort(array)
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		array := generateRandomSlice(1000000)
+		b.StartTimer()
+
+		Sort(array)
+	}
 }
 func BenchmarkQsortmSlice(b *testing.B) {
-	array := generateRandomSlice(1000000)
-	lessFn := func(i, j int) bool { return array[i] < array[j] }
-	Slice(array, lessFn)
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		array := generateRandomSlice(1000000)
+		b.StartTimer()
+
+		lessFn := func(i, j int) bool { return array[i] < array[j] }
+		Slice(array, lessFn)
+	}
 }
 
 func BenchmarkStandardSort(b *testing.B) {
-	array := generateRandomSlice(1000000)
-	sort.Sort(array)
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		array := generateRandomSlice(1000000)
+		b.StartTimer()
+
+		sort.Sort(array)
+	}
 }
 func BenchmarkStandardSlice(b *testing.B) {
-	array := generateRandomSlice(1000000)
-	lessFn := func(i, j int) bool { return array[i] < array[j] }
-	sort.Slice(array, lessFn)
+
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		array := generateRandomSlice(1000000)
+		b.StartTimer()
+
+		lessFn := func(i, j int) bool { return array[i] < array[j] }
+		sort.Slice(array, lessFn)
+	}
 }
